@@ -3,24 +3,6 @@
 
 using namespace Cassette;
 
-/*
-size_t Cassette::initRecordBuffer()
-{
-    _recordBuffers.resize(_recordBuffers.size() + 1);
-    return _recordBuffers.size() - 1;
-}
-
-std::optional<RecordBuffer&> Cassette::getRecordBuffer(size_t id)
-{
-    if (id < _recordBuffers.size())
-    {
-        return _recordBuffers[id];
-    }
-
-    return {};
-}
-*/
-
 CassetteDSP::CassetteDSP(size_t count)
 {
     RecordBuffer buffer(RECORDBUFFER_SIZE);
@@ -37,6 +19,8 @@ CassetteDSP::CassetteDSP(size_t count)
     m_dspDescr.numoutputbuffers = 1;
     m_dspDescr.read = CassetteDspGenericCallback; 
     m_dspDescr.userdata = (void *)0x12345678; 
+
+    m_state = CassetteState::CASSETTE_PAUSED;
 }
 
 void CassetteDSP::SetActive(size_t id)
@@ -44,14 +28,25 @@ void CassetteDSP::SetActive(size_t id)
     m_active = std::min(id, m_recordBuffers.size() - 1);
 }
 
-size_t CassetteDSP::GetActive()
+void CassetteDSP::SetState(CassetteState state)
 {
-    return m_active;
+    m_state = state;
 }
 
 void CassetteDSP::SetPlaybackRate(double playbackRate)
 {
     m_playbackRate = std::max(0.0, playbackRate);
+}
+
+size_t CassetteDSP::GetActive() const
+{
+    return m_active;
+}
+
+float CassetteDSP::GetActivePosition() const
+{
+    const auto& x = m_recordBuffers.at(m_active);
+    return x.GetPosition();
 }
 
 bool CassetteDSP::Register(FMOD::System* sys, std::string& error)
@@ -90,19 +85,30 @@ FMOD_RESULT CassetteDSP::Callback(
     float* outbuffer,
     uint32_t length,
     int inchannels,
-    int* outchannels)
+    int* outChannels)
 {
+    const size_t sampleCount = length * (*outChannels);
+
+
     for (uint32_t samp = 0; samp < length; samp++) 
     { 
-        for (uint32_t chan = 0; chan < *outchannels; chan++)
+        // Buffer of samples to write
+        // We want to record in mono so average over channels
+        float averagedSample = 0.0;
+
+        for (uint32_t chan = 0; chan < *outChannels; chan++)
         {
-			const uint32_t offset = (samp * *outchannels) + chan;
+			const uint32_t offset = (samp * *outChannels) + chan;
 			float value = inbuffer[offset] * 1.f;
 
-            if (chan < 2)
+            averagedSample += value / ((float)(*outChannels));
+
+            if (m_state == CassetteState::CASSETTE_PLAYING)
             {
-                value += 0.9 * this->m_recordBuffers[chan].ReadOffset(-44100);
-                this->m_recordBuffers[chan].Push(value);
+                constexpr float playbackVolume = 0.4f;
+                // Playback in mono
+                const auto& buffer = this->m_recordBuffers.at(this->m_active);
+                value += playbackVolume * buffer.ReadOffset(samp);
             }
 
 			if (value > 1.f)
@@ -114,16 +120,20 @@ FMOD_RESULT CassetteDSP::Callback(
 				value = -1.f;
 			}
 
-            /*
-			if (samp < RECORDBUFFER_SIZE)
-			{
-				*(recordBuffer + samp) = value;
-			}
-            */
-
 			outbuffer[offset] = value;
         }
+
+        if (m_state == CassetteState::CASSETTE_RECORDING)
+        {
+            this->m_recordBuffers.at(this->m_active).Push(averagedSample);
+        }
     } 
+
+    if (m_state == CassetteState::CASSETTE_PLAYING)
+    {
+        auto& buffer = this->m_recordBuffers.at(this->m_active);
+        buffer.Seek(length);
+    }
 
     return FMOD_OK;
 }
@@ -167,9 +177,27 @@ void RecordBuffer::Push(float f)
     }
 }
 
-float RecordBuffer::ReadOffset(int offset)
+void RecordBuffer::Seek(int offset)
+{
+    const size_t pos = this->WrapOffset(offset);
+    m_pos = pos;
+}
+
+float RecordBuffer::ReadOffset(int offset) const
+{
+    const size_t pos = this->WrapOffset(offset);
+    return m_buffer[pos];
+}
+
+float RecordBuffer::GetPosition() const
+{
+    return (float)m_pos / (float)m_buffer.size();
+}
+
+size_t RecordBuffer::WrapOffset(int offset) const
 {
     int pos = (int)m_pos + offset;
+    // Assume size > abs(offset) and won't wrap twice.
     if (pos < 0)
     {
         pos += (int)m_buffer.size();
@@ -179,5 +207,5 @@ float RecordBuffer::ReadOffset(int offset)
         pos -= m_buffer.size();
     }
 
-    return m_buffer[pos];
+    return pos;
 }

@@ -1131,31 +1131,24 @@ GMexport double FMODGMS_Create_Cassette()
         return GMS_error;
     }
 
-		auto posVec = std::make_unique<FMOD_VECTOR>();
-		auto velVec = std::make_unique<FMOD_VECTOR>();
-		masterGroup->setMode(FMOD_3D);
-		masterGroup->set3DLevel(0.5);
-		masterGroup->set3DAttributes(posVec.get(), velVec.get());
-
-		FMOD_VECTOR _position, _velocity, _up, _forward;
-	   _position.x = 0.5; 
-       _position.y = 0.5; 
-       _position.z = 0.5; 
-
-       _velocity.x = 0; 
-       _velocity.y = 0; 
-       _velocity.z = 0; 
-
-       _forward.x = 0; 
-       _forward.y = 0;
-       _forward.z = 1; 
-
-           _up.x = 0; 
-           _up.y = 1;
-           _up.z = 0; 
-		   sys->set3DListenerAttributes(0, &_position, &_velocity, &_forward, &_up);
+    masterGroup->setMode(FMOD_3D);
+    masterGroup->set3DLevel(0.5);
+	FMOD_VECTOR posVec, velVec;
+    masterGroup->set3DAttributes(&posVec, &velVec);
 
     return GMS_true;
+}
+
+GMexport double FMODGMS_Set_Cassette_State(double mode)
+{
+	const Cassette::CassetteState x = (Cassette::CassetteState)round(mode);
+	cassetteDsp->SetState(x);
+	return 0.0;
+}
+
+GMexport double FMODGMS_Get_Cassette_Pos()
+{
+	return cassetteDsp->GetActivePosition();
 }
 
 GMexport double FMODGMS_Set_3d_X(double channel, double x, double y, double z)

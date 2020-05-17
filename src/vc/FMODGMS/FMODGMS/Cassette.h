@@ -10,18 +10,32 @@
 
 namespace Cassette
 {
-    // About 10 seconds?
-    constexpr size_t RECORDBUFFER_SIZE = 44100 * 10 * 4;
+    // About 4 seconds?
+    //constexpr size_t RECORDBUFFER_SIZE = 44100 * 2;
+    constexpr size_t RECORDBUFFER_SIZE = 24100;
 
     class RecordBuffer
     {
     public:
         RecordBuffer(size_t count);
+
         void Push(float f);
-        float ReadOffset(int offset);
+        void Seek(int offset);
+
+        float ReadOffset(int offset) const;
+        float GetPosition() const;
     private:
         std::vector<float> m_buffer;
         size_t m_pos;
+
+        size_t WrapOffset(int offset) const;
+    };
+
+    enum class CassetteState
+    {
+        CASSETTE_PAUSED,
+        CASSETTE_PLAYING,
+        CASSETTE_RECORDING,
     };
 
     class CassetteDSP
@@ -32,16 +46,19 @@ namespace Cassette
         bool Register(FMOD::System* sys, std::string& error);
 
         void SetActive(size_t i);
-        size_t GetActive();
+        void SetState(CassetteState state);
         void SetPlaybackRate(double playbackRate);
+
+        size_t GetActive() const;
+        float GetActivePosition() const;
     private:
+        std::vector<RecordBuffer> m_recordBuffers;
         double m_playbackRate = 0;
         size_t m_active = 0;
+        CassetteState m_state = CassetteState::CASSETTE_PAUSED;
 
         FMOD::DSP* m_dsp;
         FMOD_DSP_DESCRIPTION m_dspDescr;
-
-        std::vector<RecordBuffer> m_recordBuffers;
 
         FMOD_RESULT Callback(
             float* inbuffer,
