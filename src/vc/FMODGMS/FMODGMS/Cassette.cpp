@@ -1,5 +1,6 @@
 #include "Cassette.h"
 #include <algorithm>
+#include <math.h>
 
 using namespace Cassette;
 
@@ -43,7 +44,31 @@ size_t CassetteDSP::GetActive() const
     return m_active;
 }
 
-float CassetteDSP::GetActivePosition() const
+
+double CassetteDSP::GetWaveform(double pos) const
+{
+    if (pos > 1.0 || pos < 0.0)
+    {
+        return 0.0;
+    }
+
+    const auto& recordBuffer = this->m_recordBuffers.at(this->m_active);
+    double recordBufferPos = pos * (double)(recordBuffer.GetSize() - 1);
+    // Floating point modulo not FMOD!
+    double intPart;
+    const double fracPart = modf(recordBufferPos, &intPart);
+
+    // Interpolate
+    const uint32_t lower = (uint32_t)intPart;
+    const uint32_t upper = std::min(lower + 1, recordBuffer.GetSize() - 1);
+
+    const float valLower = recordBuffer.ReadPos(lower);
+    const float valUpper = recordBuffer.ReadPos(upper);
+
+    return fracPart * valLower + (1 - fracPart) * valUpper;
+}
+
+double CassetteDSP::GetActivePosition() const
 {
     const auto& x = m_recordBuffers.at(m_active);
     return x.GetPosition();
@@ -189,6 +214,11 @@ float RecordBuffer::ReadOffset(int offset) const
     return m_buffer[pos];
 }
 
+float RecordBuffer::ReadPos(size_t pos) const
+{
+    return m_buffer[pos];
+}
+
 float RecordBuffer::GetPosition() const
 {
     return (float)m_pos / (float)m_buffer.size();
@@ -208,4 +238,9 @@ size_t RecordBuffer::WrapOffset(int offset) const
     }
 
     return pos;
+}
+
+size_t RecordBuffer::GetSize() const
+{
+    return this->m_buffer.size();
 }

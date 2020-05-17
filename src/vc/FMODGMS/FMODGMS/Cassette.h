@@ -23,7 +23,9 @@ namespace Cassette
         void Seek(int offset);
 
         float ReadOffset(int offset) const;
+        float ReadPos(size_t pos) const;
         float GetPosition() const;
+        size_t GetSize() const;
     private:
         std::vector<float> m_buffer;
         size_t m_pos;
@@ -50,7 +52,8 @@ namespace Cassette
         void SetPlaybackRate(double playbackRate);
 
         size_t GetActive() const;
-        float GetActivePosition() const;
+        double GetActivePosition() const;
+        double GetWaveform(double pos) const;
     private:
         std::vector<RecordBuffer> m_recordBuffers;
         double m_playbackRate = 0;

@@ -1146,6 +1146,11 @@ GMexport double FMODGMS_Set_Cassette_State(double mode)
 	return 0.0;
 }
 
+GMexport double FMODGMS_Get_Cassette_Waveform(double x)
+{
+	return cassetteDsp->GetWaveform(x);
+}
+
 GMexport double FMODGMS_Get_Cassette_Pos()
 {
 	return cassetteDsp->GetActivePosition();
