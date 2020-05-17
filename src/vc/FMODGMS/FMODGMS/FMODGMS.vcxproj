@@ -14,19 +14,19 @@
     <ProjectGuid>{B99C94C2-1A21-4AF5-A8CC-082E84BD6042}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>FMODGMS</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -54,6 +54,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -81,6 +82,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Cassette.cpp" />
     <ClCompile Include="fmodgms.cpp" />
     <ClCompile Include="kissfft\kiss_fft.c" />
     <ClCompile Include="kissfft\kiss_fftr.c" />
@@ -98,6 +100,7 @@
     <ClInclude Include="kissfft\kiss_fft.h" />
     <ClInclude Include="kissfft\kiss_fftr.h" />
     <ClInclude Include="kissfft\_kiss_fft_guts.h" />
+    <ClInclude Include="Cassette.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="fmod_vc.lib" />
