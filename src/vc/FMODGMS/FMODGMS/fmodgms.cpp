@@ -27,6 +27,8 @@
 //#include "half.h"
 #include "fmod_common.h"
 #include "Cassette.h"
+#include "AnnotationStore.h"
+#include "UserData.h"
 
 #pragma region Global variables
 
@@ -59,6 +61,8 @@ FMOD_DSP_PARAMETER_FFT *fftParams;
 
 // Unicode stuff
 //std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> u16Converter;
+
+AnnotationStore annotationStore;
 
 #pragma endregion
 
@@ -131,6 +135,12 @@ GMexport double FMODGMS_Sys_Close()
 	// Free sounds
 	for (auto itr = soundList.cbegin(); itr != soundList.cend(); ++itr)
 	{
+		SoundUserData* userData;
+		if (itr->second->getUserData(reinterpret_cast<void **>(&userData)) == FMOD_OK)
+		{
+			delete userData;
+		}
+
 		result = itr->second->release();
 		if (result != FMOD_OK)
 			return FMODGMS_Util_ErrorChecker();
@@ -429,13 +439,38 @@ GMexport double FMODGMS_Snd_LoadSound(char* filename)
 	// Yes, index the sound
 	if (isOK == GMS_true)
 	{
-		soundList.emplace(nSounds++, sound);
-		return nSounds - 1;
+		const uint32_t soundId = nSounds;
+
+		auto userData = new SoundUserData();
+		userData->Id = soundId;
+
+		sound->setUserData(userData);
+
+		soundList.emplace(soundId, sound);
+
+		nSounds++;
+		return soundId;
 	}
 
 	// No? Then don't index the new sound
 	else
 		return GMS_error;
+}
+
+
+GMexport double FMODGMS_Snd_AnnotateSound(double inSoundId, char* annotations)
+{
+	const auto soundId = (size_t)std::round(inSoundId);
+	const auto sound = soundList.find(soundId);
+	if (sound != soundList.end())
+	{
+		if (annotationStore.ParseAddAnnotationList(soundId, annotations))
+		{
+			return GMS_true;
+		}
+	}
+
+	return GMS_false;
 }
 
 // Loads a sound toa stream and indexes it in soundList
@@ -1121,7 +1156,8 @@ std::unique_ptr<Cassette::CassetteDSP> cassetteDsp;
 
 GMexport double FMODGMS_Create_Cassette()
 {
-	cassetteDsp = std::make_unique<Cassette::CassetteDSP>(1);
+	// TODO HANDLE RACE CONDITIONS WITH CHANNELLIST!
+	cassetteDsp = std::make_unique<Cassette::CassetteDSP>(1, &annotationStore, &channelList);
 
 	std::string error;
 	if (!cassetteDsp->Register(sys, error))
@@ -1132,7 +1168,7 @@ GMexport double FMODGMS_Create_Cassette()
     }
 
     masterGroup->setMode(FMOD_3D);
-    masterGroup->set3DLevel(0.5);
+    masterGroup->set3DLevel(0.125);
 	FMOD_VECTOR posVec, velVec;
     masterGroup->set3DAttributes(&posVec, &velVec);
 
@@ -1149,6 +1185,17 @@ GMexport double FMODGMS_Set_Cassette_State(double mode)
 GMexport double FMODGMS_Get_Cassette_Waveform(double x)
 {
 	return cassetteDsp->GetWaveform(x);
+}
+
+GMexport const char* FMODGMS_Get_Cassette_WorldAnnotation()
+{
+	const auto& curAnnot = cassetteDsp->GetCurrentWorldAnnotation();
+	if (curAnnot.Value.has_value())
+	{
+		return curAnnot.Value->data();
+	}
+
+	return "";
 }
 
 GMexport double FMODGMS_Get_Cassette_Pos()
@@ -1191,7 +1238,7 @@ GMexport double FMODGMS_Set_3d_X(double channel, double x, double y, double z)
 // Creates a new channel
 GMexport double FMODGMS_Chan_CreateChannel()
 {
-	FMOD::Channel *chan = NULL;
+	FMOD::Channel* chan = nullptr;
 	channelList.emplace(nChannels++, chan);
 
 	errorMessage = "No errors.";

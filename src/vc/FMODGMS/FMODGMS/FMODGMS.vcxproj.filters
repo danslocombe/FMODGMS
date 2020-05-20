@@ -54,6 +54,9 @@
     <ClInclude Include="Cassette.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="UserData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fmodgms.cpp">
@@ -66,6 +69,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Cassette.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AnnotationStore.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AnnotationStore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

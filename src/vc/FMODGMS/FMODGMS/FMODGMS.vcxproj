@@ -42,6 +42,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <CustomBuildAfterTargets>Link</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -60,6 +61,10 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <CustomBuildStep>
+      <Command>copy C:\Users\daslocom\FMODGMS\src\vc\FMODGMS\Debug\FMODGMS.* C:\Users\daslocom\Documents\GameMaker\Projects\fmodrecord.gmx\extensions\FMODGMS</Command>
+      <Outputs>fakeoutput.txt</Outputs>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -82,6 +87,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AnnotationStore.cpp" />
+    <ClCompile Include="AnnotationStore.h" />
     <ClCompile Include="Cassette.cpp" />
     <ClCompile Include="fmodgms.cpp" />
     <ClCompile Include="kissfft\kiss_fft.c" />
@@ -101,6 +108,7 @@
     <ClInclude Include="kissfft\kiss_fftr.h" />
     <ClInclude Include="kissfft\_kiss_fft_guts.h" />
     <ClInclude Include="Cassette.h" />
+    <ClInclude Include="UserData.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="fmod_vc.lib" />

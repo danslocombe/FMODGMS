@@ -1,10 +1,13 @@
 #include "Cassette.h"
+#include "UserData.h"
 #include <algorithm>
 #include <math.h>
 
 using namespace Cassette;
 
-CassetteDSP::CassetteDSP(size_t count)
+CassetteDSP::CassetteDSP(size_t recordCount, AnnotationStore* annotationStore, const std::unordered_map<size_t, FMOD::Channel*>* channels) :
+    m_annotationStore(annotationStore),
+    m_channels(channels)
 {
     RecordBuffer buffer(RECORDBUFFER_SIZE);
     m_recordBuffers.emplace_back(std::move(buffer));
@@ -31,7 +34,7 @@ void CassetteDSP::SetActive(size_t id)
 
 void CassetteDSP::SetState(CassetteState state)
 {
-    m_state = state;
+m_state = state;
 }
 
 void CassetteDSP::SetPlaybackRate(double playbackRate)
@@ -74,16 +77,21 @@ double CassetteDSP::GetActivePosition() const
     return x.GetPosition();
 }
 
+const AnnotationValue& CassetteDSP::GetCurrentWorldAnnotation() const
+{
+    return this->m_worldCurrentAnnotation;
+}
+
 bool CassetteDSP::Register(FMOD::System* sys, std::string& error)
 {
-    FMOD_RESULT result = sys->createDSP(&m_dspDescr, &m_dsp); 
+    FMOD_RESULT result = sys->createDSP(&m_dspDescr, &m_dsp);
     if (result != FMOD_OK)
     {
         error = "Could not create DSP";
         return false;
     }
 
-    FMOD::ChannelGroup *masterGroup = nullptr;
+    FMOD::ChannelGroup* masterGroup = nullptr;
     result = sys->getMasterChannelGroup(&masterGroup);
 
     if (result != FMOD_OK && masterGroup != nullptr)
@@ -114,6 +122,37 @@ FMOD_RESULT CassetteDSP::Callback(
 {
     const size_t sampleCount = length * (*outChannels);
 
+    AnnotationValue annotation;
+
+    if (m_state == CassetteState::CASSETTE_PLAYING)
+    {
+        const auto& buffer = this->m_recordBuffers.at(this->m_active);
+        annotation = buffer.ReadOffsetAnnotation(0);
+    }
+    else
+    {
+        for (const auto& kv : *m_channels)
+        {
+            const auto& channel = kv.second;
+
+            bool chanIsPlaying;
+            FMOD::Sound* playingSound;
+            SoundUserData* userData;
+            uint32_t posMs;
+            if (channel->isPlaying(&chanIsPlaying) == FMOD_OK && chanIsPlaying
+                && channel->getCurrentSound(&playingSound) == FMOD_OK)
+            {
+                if (playingSound->getUserData(reinterpret_cast<void**>(&userData)) == FMOD_OK
+                    && channel->getPosition(&posMs, FMOD_TIMEUNIT_MS) == FMOD_OK)
+                {
+                    annotation.Value = this->m_annotationStore->GetAnnotation(userData->Id, (double)posMs / 1000.0);
+                    break;
+                }
+            }
+        }
+    }
+
+    this->m_worldCurrentAnnotation = annotation;
 
     for (uint32_t samp = 0; samp < length; samp++) 
     { 
@@ -121,7 +160,7 @@ FMOD_RESULT CassetteDSP::Callback(
         // We want to record in mono so average over channels
         float averagedSample = 0.0;
 
-        for (uint32_t chan = 0; chan < *outChannels; chan++)
+        for (int chan = 0; chan < *outChannels; chan++)
         {
 			const uint32_t offset = (samp * *outChannels) + chan;
 			float value = inbuffer[offset] * 1.f;
@@ -150,7 +189,8 @@ FMOD_RESULT CassetteDSP::Callback(
 
         if (m_state == CassetteState::CASSETTE_RECORDING)
         {
-            this->m_recordBuffers.at(this->m_active).Push(averagedSample);
+            auto& recordingBuffer = this->m_recordBuffers.at(this->m_active);
+            recordingBuffer.Push(averagedSample, annotation);
         }
     } 
 
@@ -189,13 +229,17 @@ FMOD_RESULT F_CALLBACK CassetteDSP::CassetteDspGenericCallback(
 RecordBuffer::RecordBuffer(size_t count)
 {
     m_buffer.resize(count);
+    m_annotations.resize(count);
     m_pos = 0;
 }
 
-void RecordBuffer::Push(float f)
+void RecordBuffer::Push(float f, AnnotationValue annotation)
 {
     m_buffer[m_pos] = f;
+    m_annotations[m_pos] = annotation;
+
     m_pos++;
+
     if (m_pos >= m_buffer.size())
     {
         m_pos = 0;
@@ -217,6 +261,17 @@ float RecordBuffer::ReadOffset(int offset) const
 float RecordBuffer::ReadPos(size_t pos) const
 {
     return m_buffer[pos];
+}
+
+const AnnotationValue& RecordBuffer::ReadOffsetAnnotation(int offset) const
+{
+    const size_t pos = this->WrapOffset(offset);
+    return m_annotations[pos];
+}
+
+const AnnotationValue& RecordBuffer::ReadPosAnnotation(size_t pos) const
+{
+    return m_annotations[pos];
 }
 
 float RecordBuffer::GetPosition() const
