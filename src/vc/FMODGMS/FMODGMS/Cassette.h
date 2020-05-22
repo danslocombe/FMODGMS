@@ -8,12 +8,13 @@
 #include "fmod_errors.h"
 #include <string>
 #include "AnnotationStore.h"
+#include "CassetteControl.h"
 
 namespace Cassette
 {
     // About 4 seconds?
     //constexpr size_t RECORDBUFFER_SIZE = 44100 * 2;
-    constexpr size_t RECORDBUFFER_SIZE = 24100;
+    constexpr size_t RECORDBUFFER_SIZE = 24100 * 2.5;
 
     struct AnnotationValue
     {
@@ -26,10 +27,12 @@ namespace Cassette
         RecordBuffer(size_t count);
 
         void Push(float f, AnnotationValue annotation);
-        void Seek(int offset);
+        void Seek(size_t pos);
+        void SeekOffset(int offset);
 
         float ReadOffset(int offset) const;
         float ReadPos(size_t pos) const;
+        float ReadPosInterpolate(double pos) const;
 
         const AnnotationValue& ReadOffsetAnnotation(int offset) const;
         const AnnotationValue& ReadPosAnnotation(size_t pos) const;
@@ -74,6 +77,8 @@ namespace Cassette
         double m_playbackRate = 0;
         size_t m_active = 0;
         CassetteState m_state = CassetteState::CASSETTE_PAUSED;
+
+        CassetteControl m_control;
 
         AnnotationStore* m_annotationStore;
         const std::unordered_map<std::size_t, FMOD::Channel*>* m_channels;

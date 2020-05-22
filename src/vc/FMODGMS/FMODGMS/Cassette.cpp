@@ -1,13 +1,14 @@
 #include "Cassette.h"
 #include "UserData.h"
 #include <algorithm>
-#include <math.h>
+#include <cmath>
 
 using namespace Cassette;
 
 CassetteDSP::CassetteDSP(size_t recordCount, AnnotationStore* annotationStore, const std::unordered_map<size_t, FMOD::Channel*>* channels) :
     m_annotationStore(annotationStore),
-    m_channels(channels)
+    m_channels(channels),
+    m_control(CassetteControl(RECORDBUFFER_SIZE))
 {
     RecordBuffer buffer(RECORDBUFFER_SIZE);
     m_recordBuffers.emplace_back(std::move(buffer));
@@ -34,7 +35,16 @@ void CassetteDSP::SetActive(size_t id)
 
 void CassetteDSP::SetState(CassetteState state)
 {
-m_state = state;
+    m_state = state;
+
+    if (m_state == CassetteState::CASSETTE_PLAYING)
+    {
+        m_control.StartPlaying();
+    }
+    else
+    {
+        m_control.StopPlaying();
+    }
 }
 
 void CassetteDSP::SetPlaybackRate(double playbackRate)
@@ -57,18 +67,8 @@ double CassetteDSP::GetWaveform(double pos) const
 
     const auto& recordBuffer = this->m_recordBuffers.at(this->m_active);
     double recordBufferPos = pos * (double)(recordBuffer.GetSize() - 1);
-    // Floating point modulo not FMOD!
-    double intPart;
-    const double fracPart = modf(recordBufferPos, &intPart);
 
-    // Interpolate
-    const uint32_t lower = (uint32_t)intPart;
-    const uint32_t upper = std::min(lower + 1, recordBuffer.GetSize() - 1);
-
-    const float valLower = recordBuffer.ReadPos(lower);
-    const float valUpper = recordBuffer.ReadPos(upper);
-
-    return fracPart * valLower + (1 - fracPart) * valUpper;
+    return recordBuffer.ReadPosInterpolate(recordBufferPos);
 }
 
 double CassetteDSP::GetActivePosition() const
@@ -172,7 +172,8 @@ FMOD_RESULT CassetteDSP::Callback(
                 constexpr float playbackVolume = 0.4f;
                 // Playback in mono
                 const auto& buffer = this->m_recordBuffers.at(this->m_active);
-                value += playbackVolume * buffer.ReadOffset(samp);
+                const double readPos = m_control.GetPos() + samp * m_control.GetVel();
+                value += playbackVolume * buffer.ReadPosInterpolate(readPos);
             }
 
 			if (value > 1.f)
@@ -194,10 +195,13 @@ FMOD_RESULT CassetteDSP::Callback(
         }
     } 
 
-    if (m_state == CassetteState::CASSETTE_PLAYING)
+    if (m_state != CassetteState::CASSETTE_RECORDING)
     {
         auto& buffer = this->m_recordBuffers.at(this->m_active);
-        buffer.Seek(length);
+        m_control.Tick(static_cast<double>(length));
+        const uint32_t pos = static_cast<uint32_t>(m_control.GetPos());
+        buffer.Seek(pos);
+        //buffer.SeekOffset(length);
     }
 
     return FMOD_OK;
@@ -246,7 +250,12 @@ void RecordBuffer::Push(float f, AnnotationValue annotation)
     }
 }
 
-void RecordBuffer::Seek(int offset)
+void RecordBuffer::Seek(size_t pos)
+{
+    m_pos = pos;
+}
+
+void RecordBuffer::SeekOffset(int offset)
 {
     const size_t pos = this->WrapOffset(offset);
     m_pos = pos;
@@ -261,6 +270,28 @@ float RecordBuffer::ReadOffset(int offset) const
 float RecordBuffer::ReadPos(size_t pos) const
 {
     return m_buffer[pos];
+}
+
+float RecordBuffer::ReadPosInterpolate(double pos) const
+{
+    double intPart;
+    const double fracPart = modf(pos, &intPart);
+
+    uint32_t lower = (uint32_t)intPart;
+    if (lower >= m_buffer.size())
+    {
+        lower -= m_buffer.size();
+    }
+    uint32_t upper = lower + 1;
+    if (upper >= m_buffer.size())
+    {
+        upper -= m_buffer.size();
+    }
+
+    const float valLower = this->ReadPos(lower);
+    const float valUpper = this->ReadPos(upper);
+
+    return fracPart * valLower + (1 - fracPart) * valUpper;
 }
 
 const AnnotationValue& RecordBuffer::ReadOffsetAnnotation(int offset) const
