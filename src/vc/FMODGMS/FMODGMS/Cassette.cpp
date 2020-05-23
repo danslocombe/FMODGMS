@@ -124,13 +124,16 @@ FMOD_RESULT CassetteDSP::Callback(
 
     AnnotationValue annotation;
 
-    if (m_state == CassetteState::CASSETTE_PLAYING)
+    constexpr double VEL_THRESHOLD = 0.01;
+    if (m_state != CassetteState::CASSETTE_RECORDING && abs(m_control.GetVel()) > VEL_THRESHOLD)
     {
+        // Take annotation from casseette
         const auto& buffer = this->m_recordBuffers.at(this->m_active);
         annotation = buffer.ReadOffsetAnnotation(0);
     }
     else
     {
+        // Take annotation from environment
         for (const auto& kv : *m_channels)
         {
             const auto& channel = kv.second;
@@ -167,7 +170,7 @@ FMOD_RESULT CassetteDSP::Callback(
 
             averagedSample += value / ((float)(*outChannels));
 
-            if (m_state == CassetteState::CASSETTE_PLAYING)
+            if (m_state != CassetteState::CASSETTE_RECORDING)
             {
                 constexpr float playbackVolume = 0.4f;
                 // Playback in mono

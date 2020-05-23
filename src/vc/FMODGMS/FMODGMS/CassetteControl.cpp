@@ -63,8 +63,8 @@ void CassetteControl::Tick(double dt)
 {
     const double targetVel = GetTargetVel();
 
-    constexpr double WEIGHT = 1.0 / 100.0;
-    constexpr double DECEL_WEIGHT = WEIGHT * 1.2;
+    constexpr double WEIGHT = 1.0 / 200.0;
+    constexpr double DECEL_WEIGHT = WEIGHT * 1.8;
 
     const double weight = std::abs(targetVel) > 0.001 ? WEIGHT : DECEL_WEIGHT;
     m_vel = weightVals(m_vel, targetVel, dt * weight);
