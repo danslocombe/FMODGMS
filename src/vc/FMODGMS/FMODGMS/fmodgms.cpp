@@ -431,7 +431,7 @@ GMexport double FMODGMS_Snd_LoadSound(char* filename)
 {
 	FMOD::Sound *sound = NULL;
 	//const auto params = FMOD_CREATESOUNDEXINFO();
-	result = sys->createSound(filename, FMOD_DEFAULT | FMOD_3D, soundParams, &sound);
+	result = sys->createSound(filename, FMOD_DEFAULT /*| FMOD_3D*/, soundParams, &sound);
 
 	// we cool?
 	double isOK = FMODGMS_Util_ErrorChecker();
@@ -1167,10 +1167,10 @@ GMexport double FMODGMS_Create_Cassette()
         return GMS_error;
     }
 
-    masterGroup->setMode(FMOD_3D);
-    masterGroup->set3DLevel(0.125);
-	FMOD_VECTOR posVec, velVec;
-    masterGroup->set3DAttributes(&posVec, &velVec);
+    //masterGroup->setMode(FMOD_3D);
+    //masterGroup->set3DLevel(0.125);
+	//FMOD_VECTOR posVec, velVec;
+    //masterGroup->set3DAttributes(&posVec, &velVec);
 
     return GMS_true;
 }
@@ -1210,6 +1210,7 @@ GMexport double FMODGMS_Set_3d_X(double channel, double x, double y, double z)
 	//if (c < channelList.size())
 	//{
 	//}
+	/*
 		FMOD_VECTOR _position, _velocity, _up, _forward;
 	   _position.x = (float)x; 
 	   _position.y = (float)y;
@@ -1227,6 +1228,7 @@ GMexport double FMODGMS_Set_3d_X(double channel, double x, double y, double z)
            _up.y = 1;
            _up.z = 0; 
 		   sys->set3DListenerAttributes(0, &_position, &_velocity, &_forward, &_up);
+		   */
 
 	return GMS_true;
 }

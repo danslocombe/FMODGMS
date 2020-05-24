@@ -14,7 +14,7 @@ namespace Cassette
 {
     // About 4 seconds?
     //constexpr size_t RECORDBUFFER_SIZE = 44100 * 2;
-    constexpr size_t RECORDBUFFER_SIZE = 24100 * 2.5;
+    constexpr size_t RECORDBUFFER_SIZE = static_cast<size_t>(24100 * 2.5);
 
     struct AnnotationValue
     {
