@@ -1,5 +1,6 @@
 #include "Cassette.h"
 #include "UserData.h"
+#include "ConstantReader.h"
 #include <algorithm>
 #include <cmath>
 
@@ -30,7 +31,7 @@ CassetteDSP::CassetteDSP(size_t recordCount, AnnotationStore* annotationStore, c
 
 void CassetteDSP::SetActive(size_t id)
 {
-    m_active = std::min(id, m_recordBuffers.size() - 1);
+    m_active = min(id, m_recordBuffers.size() - 1);
 }
 
 void CassetteDSP::SetState(CassetteState state)
@@ -49,7 +50,7 @@ void CassetteDSP::SetState(CassetteState state)
 
 void CassetteDSP::SetPlaybackRate(double playbackRate)
 {
-    m_playbackRate = std::max(0.0, playbackRate);
+    m_playbackRate = max(0.0, playbackRate);
 }
 
 size_t CassetteDSP::GetActive() const
@@ -113,23 +114,14 @@ bool CassetteDSP::Register(FMOD::System* sys, std::string& error)
     return true;
 }
 
-FMOD_RESULT CassetteDSP::Callback(
-    float* inbuffer,
-    float* outbuffer,
-    uint32_t length,
-    int inchannels,
-    int* outChannels)
+AnnotationValue CassetteDSP::GetCurrentAnnotationValue()
 {
-    const size_t sampleCount = length * (*outChannels);
-
-    AnnotationValue annotation;
-
     constexpr double VEL_THRESHOLD = 0.01;
     if (m_state != CassetteState::CASSETTE_RECORDING && abs(m_control.GetVel()) > VEL_THRESHOLD)
     {
         // Take annotation from casseette
         const auto& buffer = this->m_recordBuffers.at(this->m_active);
-        annotation = buffer.ReadOffsetAnnotation(0);
+        return buffer.ReadOffsetAnnotation(0);
     }
     else
     {
@@ -148,14 +140,61 @@ FMOD_RESULT CassetteDSP::Callback(
                 if (playingSound->getUserData(reinterpret_cast<void**>(&userData)) == FMOD_OK
                     && channel->getPosition(&posMs, FMOD_TIMEUNIT_MS) == FMOD_OK)
                 {
-                    annotation.Value = this->m_annotationStore->GetAnnotation(userData->Id, (double)posMs / 1000.0);
-                    break;
+                    return AnnotationValue{ this->m_annotationStore->GetAnnotation(userData->Id, (double)posMs / 1000.0) };
                 }
             }
         }
     }
 
+    return AnnotationValue();
+}
+
+std::vector<float> CassetteDSP::PlayCassetteSamples(size_t count)
+{
+    std::vector<float> samples;
+    samples.resize(count);
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        // Playback in mono
+        const auto& buffer = this->m_recordBuffers.at(this->m_active);
+        const double readPos = m_control.GetPos() + i * m_control.GetVel();
+        samples[i] = buffer.ReadPosInterpolate(readPos);
+    }
+
+    std::vector<float> distorted = m_distort.Run(samples);
+    return distorted;
+}
+
+float noise(float amp)
+{
+    float noise = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+    if (rand() % 2 == 0)
+    {
+        noise = -noise;
+    }
+
+    return noise * amp;
+}
+
+FMOD_RESULT CassetteDSP::Callback(
+    float* inbuffer,
+    float* outbuffer,
+    uint32_t length,
+    int inchannels,
+    int* outChannels)
+{
+    const double cassettePlaybackVolume = Constants::Globals.GetDouble("cassette_playback_volume");
+    const size_t sampleCount = length * (*outChannels);
+
+    AnnotationValue annotation = this->GetCurrentAnnotationValue();
     this->m_worldCurrentAnnotation = annotation;
+
+    std::vector<float> cassettePlayBuffer;
+    if (m_state != CassetteState::CASSETTE_RECORDING)
+    {
+        cassettePlayBuffer = this->PlayCassetteSamples(length);
+    }
 
     for (uint32_t samp = 0; samp < length; samp++) 
     { 
@@ -170,13 +209,9 @@ FMOD_RESULT CassetteDSP::Callback(
 
             averagedSample += value / ((float)(*outChannels));
 
-            if (m_state != CassetteState::CASSETTE_RECORDING)
+            if (cassettePlayBuffer.size() > 0)
             {
-                constexpr float playbackVolume = 0.4f;
-                // Playback in mono
-                const auto& buffer = this->m_recordBuffers.at(this->m_active);
-                const double readPos = m_control.GetPos() + samp * m_control.GetVel();
-                value += playbackVolume * buffer.ReadPosInterpolate(readPos);
+                value += cassettePlaybackVolume * cassettePlayBuffer.at(samp);
             }
 
 			if (value > 1.f)
@@ -194,7 +229,8 @@ FMOD_RESULT CassetteDSP::Callback(
         if (m_state == CassetteState::CASSETTE_RECORDING)
         {
             auto& recordingBuffer = this->m_recordBuffers.at(this->m_active);
-            recordingBuffer.Push(averagedSample, annotation);
+            const float recordSample = averagedSample + noise(0.01);
+            recordingBuffer.Push(recordSample, annotation);
         }
     } 
 
@@ -278,7 +314,7 @@ float RecordBuffer::ReadPos(size_t pos) const
 float RecordBuffer::ReadPosInterpolate(double pos) const
 {
     double intPart;
-    const double fracPart = modf(pos, &intPart);
+    const float fracPart = static_cast<float>(modf(pos, &intPart));
 
     uint32_t lower = (uint32_t)intPart;
     if (lower >= m_buffer.size())
@@ -294,7 +330,7 @@ float RecordBuffer::ReadPosInterpolate(double pos) const
     const float valLower = this->ReadPos(lower);
     const float valUpper = this->ReadPos(upper);
 
-    return fracPart * valLower + (1 - fracPart) * valUpper;
+    return fracPart * valLower + (1.0 - fracPart) * valUpper;
 }
 
 const AnnotationValue& RecordBuffer::ReadOffsetAnnotation(int offset) const

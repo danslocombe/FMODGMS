@@ -9,6 +9,7 @@
 #include <string>
 #include "AnnotationStore.h"
 #include "CassetteControl.h"
+#include "CassetteDistortion.h"
 
 namespace Cassette
 {
@@ -79,6 +80,7 @@ namespace Cassette
         CassetteState m_state = CassetteState::CASSETTE_PAUSED;
 
         CassetteControl m_control;
+        CassetteDistortion m_distort;
 
         AnnotationStore* m_annotationStore;
         const std::unordered_map<std::size_t, FMOD::Channel*>* m_channels;
@@ -87,6 +89,9 @@ namespace Cassette
         FMOD_DSP_DESCRIPTION m_dspDescr;
 
         AnnotationValue m_worldCurrentAnnotation;
+
+        AnnotationValue GetCurrentAnnotationValue();
+        std::vector<float> PlayCassetteSamples(size_t count);
 
         FMOD_RESULT Callback(
             float* inbuffer,

@@ -1,5 +1,6 @@
 #include "CassetteControl.h"
 #include <cmath>
+#include "ConstantReader.h"
 
 using namespace Cassette;
 
@@ -63,10 +64,13 @@ void CassetteControl::Tick(double dt)
 {
     const double targetVel = GetTargetVel();
 
-    constexpr double WEIGHT = 1.0 / 200.0;
-    constexpr double DECEL_WEIGHT = WEIGHT * 1.8;
+    const double weight_base = 1.0 / Constants::Globals.GetDouble("cassette_control_weight_divisor");
+    //const double WEIGHT = 1.0 / 200.0;
+    //const double DECEL_WEIGHT = WEIGHT * 1.8;
+    const double decel_weight = weight_base * Constants::Globals.GetDouble("cassette_control_weight_decel_mult");
 
-    const double weight = std::abs(targetVel) > 0.001 ? WEIGHT : DECEL_WEIGHT;
+    const double weight = std::abs(targetVel) > 0.001 ? weight_base : decel_weight;
+
     m_vel = weightVals(m_vel, targetVel, dt * weight);
 
     m_pos += m_vel * dt;

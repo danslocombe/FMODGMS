@@ -29,8 +29,11 @@
 #include "Cassette.h"
 #include "AnnotationStore.h"
 #include "UserData.h"
+#include "ConstantReader.h"
 
 #pragma region Global variables
+
+ConstantReader Constants::Globals("C:\\users\\daslocom\\tmp\\cassette_globals.txt");
 
 // System Stuff
 FMOD::System *sys = NULL;
@@ -102,6 +105,8 @@ GMexport double FMODGMS_Sys_Update()
 	result = sys->update();
 	if (result != FMOD_OK)
 		return FMODGMS_Util_ErrorChecker();
+
+	Constants::Globals.Refresh();
 	
 	//Check to see if anything is playing before gathering spectrum data
 	bool playState = false;

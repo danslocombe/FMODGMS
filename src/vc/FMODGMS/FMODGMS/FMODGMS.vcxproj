@@ -91,12 +91,17 @@
     <ClCompile Include="AnnotationStore.h" />
     <ClCompile Include="Cassette.cpp" />
     <ClCompile Include="CassetteControl.cpp" />
+    <ClCompile Include="CassetteDistortion.cpp" />
+    <ClCompile Include="ConstantReader.cpp" />
     <ClCompile Include="fmodgms.cpp" />
     <ClCompile Include="kissfft\kiss_fft.c" />
     <ClCompile Include="kissfft\kiss_fftr.c" />
+    <ClCompile Include="RingBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CassetteControl.h" />
+    <ClInclude Include="CassetteDistortion.h" />
+    <ClInclude Include="ConstantReader.h" />
     <ClInclude Include="fmod.h" />
     <ClInclude Include="fmod.hpp" />
     <ClInclude Include="fmodgms.hpp" />
@@ -110,6 +115,7 @@
     <ClInclude Include="kissfft\kiss_fftr.h" />
     <ClInclude Include="kissfft\_kiss_fft_guts.h" />
     <ClInclude Include="Cassette.h" />
+    <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="UserData.h" />
   </ItemGroup>
   <ItemGroup>
