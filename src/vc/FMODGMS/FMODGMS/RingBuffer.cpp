@@ -19,13 +19,14 @@ RingBuffer::~RingBuffer()
 
 void RingBuffer::Push(float x)
 {
-    m_buffer[m_currentPos] = x;
     m_currentPos++;
 
     if (m_currentPos == m_size)
     {
         m_currentPos = 0;
     }
+
+    m_buffer[m_currentPos] = x;
 }
 
 float RingBuffer::ReadOffset(int offset) const

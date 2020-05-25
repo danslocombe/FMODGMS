@@ -88,7 +88,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AnnotationStore.cpp" />
-    <ClCompile Include="AnnotationStore.h" />
     <ClCompile Include="Cassette.cpp" />
     <ClCompile Include="CassetteControl.cpp" />
     <ClCompile Include="CassetteDistortion.cpp" />
@@ -99,6 +98,7 @@
     <ClCompile Include="RingBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AnnotationStore.h" />
     <ClInclude Include="CassetteControl.h" />
     <ClInclude Include="CassetteDistortion.h" />
     <ClInclude Include="ConstantReader.h" />
