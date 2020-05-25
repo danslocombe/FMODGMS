@@ -3,9 +3,23 @@
 #include <fileapi.h> 
 #include <optional>
 #include <charconv>
-//#include <timezoneapi.h>
 
-//ConstantReader DCR::Globals("C:\\users\\daslocom\\tmp\\danconstants.txt");
+class shared_lock_guard
+{
+private:
+    std::shared_mutex& m;
+
+public:
+    explicit shared_lock_guard(std::shared_mutex& m_):
+        m(m_)
+    {
+        m.lock_shared();
+    }
+    ~shared_lock_guard()
+    {
+        m.unlock_shared();
+    }
+};
 
 std::string ReadAll(HANDLE handle)
 {
@@ -70,18 +84,33 @@ std::optional<std::pair<std::string_view, std::string_view>> splitKV(const std::
 
 }
 
+bool stringEqualIgnoreCase(const std::string_view& x, const std::string_view& y)
+{
+    return (x.size() == y.size()) && (_strnicmp(x.data(), y.data(), x.size()) == 0);
+}
+
 ConstantReader::Constant ConstantReader::ParseConstant(const std::string_view& str)
 {
-    double doubleVal;
-    auto[p, ec] = std::from_chars(str.data(), str.data() + str.size(), doubleVal);
-    if (ec != std::errc())
+    if (stringEqualIgnoreCase(str, "true"))
     {
-        // Could not parse as double
-        // Return as string
-        return { str };
+        return { true };
     }
 
-    return { doubleVal };
+    if (stringEqualIgnoreCase(str, "false"))
+    {
+        return { false };
+    }
+
+    double doubleVal;
+    auto[p, ec] = std::from_chars(str.data(), str.data() + str.size(), doubleVal);
+    if (ec == std::errc())
+    {
+        return { doubleVal };
+    }
+
+    // Could parse as anything
+    // Interpret as string
+    return { std::string(str) };
 }
 
 std::unordered_map<std::string_view, ConstantReader::Constant> ConstantReader::ParseValues(const std::string_view& str)
@@ -127,29 +156,28 @@ ConstantReader::~ConstantReader()
 
 void ConstantReader::Refresh()
 {
-    std::unique_lock<std::shared_mutex> writeLock(m_rwLock);
+    const std::unique_lock<std::shared_mutex> guard(m_rwMutex);
 
-    if (this->ShouldRebuild())
+    FILETIME newLastModifiedTime;
+    if (this->ShouldRebuild(&newLastModifiedTime))
     {
-        m_fileContents = ReadAll(m_handle);
-        m_values = this->ParseValues(m_fileContents);
+        const auto data = ReadAll(m_handle);
+        if (data.size() > 0)
+        {
+            m_fileContents = data;
+            m_values = this->ParseValues(m_fileContents);
+            m_lastModified = newLastModifiedTime;
+        }
     }
 }
 
-bool ConstantReader::ShouldRebuild()
+bool ConstantReader::ShouldRebuild(LPFILETIME lastWriteTime) const
 {
     FILETIME creationTime;
     FILETIME lastAccessTime;
-    FILETIME lastWriteTime;
-    GetFileTime(m_handle, &creationTime, &lastAccessTime, &lastWriteTime);
+    GetFileTime(m_handle, &creationTime, &lastAccessTime, lastWriteTime);
 
-    if (lastWriteTime.dwHighDateTime != m_lastModified.dwHighDateTime || lastWriteTime.dwLowDateTime != m_lastModified.dwLowDateTime)
-    {
-        m_lastModified = lastWriteTime;
-        return true;
-    }
-
-    return false;
+    return (lastWriteTime->dwHighDateTime != m_lastModified.dwHighDateTime || lastWriteTime->dwLowDateTime != m_lastModified.dwLowDateTime);
 }
 
 int ConstantReader::GetInt(const std::string_view& name) const
@@ -162,36 +190,51 @@ uint32_t ConstantReader::GetUint(const std::string_view& name) const
     return static_cast<uint32_t>(this->GetDouble(name));
 }
 
+bool ConstantReader::GetBool(const std::string_view& val) const
+{
+    const auto x = this->FindConstant(val);
+
+    if (x.has_value() && std::holds_alternative<bool>(*x))
+    {
+        return std::get<bool>(*x);
+    }
+
+    return false;
+}
+
 double ConstantReader::GetDouble(const std::string_view& val) const
 {
-    std::shared_lock<std::shared_mutex> readLock(m_rwLock);
+    const auto x = this->FindConstant(val);
 
-    const auto existing = m_values.find(val);
-    if (existing != m_values.end())
+    if (x.has_value() && std::holds_alternative<double>(*x))
     {
-        const auto val = existing->second;
-        if (std::holds_alternative<double>(val))
-        {
-            return std::get<double>(val);
-        }
+        return std::get<double>(*x);
     }
 
     return 0.0;
 }
 
-const std::string_view& ConstantReader::GetString(const std::string_view& val) const
+std::string ConstantReader::GetString(const std::string_view& val) const
 {
-    std::shared_lock<std::shared_mutex> readLock(m_rwLock);
+    const auto x = this->FindConstant(val);
 
-    const auto existing = m_values.find(val);
-    if (existing != m_values.end())
+    if (x.has_value() && std::holds_alternative<std::string>(*x))
     {
-        const auto val = existing->second;
-        if (std::holds_alternative<std::string_view>(val))
-        {
-            return std::get<std::string_view>(val);
-        }
+        return std::get<std::string>(*x);
     }
 
     return "";
+}
+
+std::optional<ConstantReader::Constant> ConstantReader::FindConstant(const std::string_view& name) const
+{
+    const std::shared_lock<std::shared_mutex> guard(m_rwMutex);
+
+    const auto existing = m_values.find(name);
+    if (existing != m_values.end())
+    {
+        return existing->second;
+    }
+
+    return std::nullopt;
 }

@@ -62,9 +62,22 @@ double weightVals(double x0, double x1, double weight)
 
 void CassetteControl::Tick(double dt)
 {
+    if (dt == 0)
+    {
+        return;
+    }
+
     const double targetVel = GetTargetVel();
 
-    const double weight_base = 1.0 / Constants::Globals.GetDouble("cassette_control_weight_divisor");
+    double weight_div = Constants::Globals.GetDouble("cassette_control_weight_divisor");
+
+    if (weight_div == 0.0)
+    {
+        weight_div = 1.0;
+    }
+
+    double weight_base = 1.0 / weight_div;
+
     //const double WEIGHT = 1.0 / 200.0;
     //const double DECEL_WEIGHT = WEIGHT * 1.8;
     const double decel_weight = weight_base * Constants::Globals.GetDouble("cassette_control_weight_decel_mult");
