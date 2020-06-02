@@ -3,6 +3,7 @@
 #include <fileapi.h> 
 #include <optional>
 #include <charconv>
+#include "StringHelpers.h"
 
 class shared_lock_guard
 {
@@ -82,11 +83,6 @@ std::optional<std::pair<std::string_view, std::string_view>> splitKV(const std::
 
     return std::nullopt;
 
-}
-
-bool stringEqualIgnoreCase(const std::string_view& x, const std::string_view& y)
-{
-    return (x.size() == y.size()) && (_strnicmp(x.data(), y.data(), x.size()) == 0);
 }
 
 ConstantReader::Constant ConstantReader::ParseConstant(const std::string_view& str)

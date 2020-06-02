@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\Dan">
+      <UniqueIdentifier>{0d58c497-1d28-4fc5-af20-44271b0f6a61}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fmod.h">
@@ -51,23 +54,29 @@
     <ClInclude Include="kissfft\_kiss_fft_guts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Cassette.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="UserData.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CassetteControl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CassetteDistortion.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Dan</Filter>
     </ClInclude>
     <ClInclude Include="RingBuffer.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
+    <ClInclude Include="CassetteControl.h">
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
+    <ClInclude Include="CassetteDistortion.h">
+      <Filter>Header Files\Dan</Filter>
     </ClInclude>
     <ClInclude Include="ConstantReader.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
+    <ClInclude Include="Cassette.h">
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
+    <ClInclude Include="SpeechSynth.h">
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
+    <ClInclude Include="StringHelpers.h">
+      <Filter>Header Files\Dan</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -83,9 +92,6 @@
     <ClCompile Include="Cassette.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AnnotationStore.h">
-      <Filter>Header Files</Filter>
-    </ClCompile>
     <ClCompile Include="AnnotationStore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -99,6 +105,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ConstantReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AnnotationStore.h">
+      <Filter>Header Files\Dan</Filter>
+    </ClCompile>
+    <ClCompile Include="SpeechSynth.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

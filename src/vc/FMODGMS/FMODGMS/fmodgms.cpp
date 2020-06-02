@@ -30,6 +30,7 @@
 #include "AnnotationStore.h"
 #include "UserData.h"
 #include "ConstantReader.h"
+#include "SpeechSynth.h"
 
 #pragma region Global variables
 
@@ -1029,14 +1030,16 @@ GMexport double FMODGMS_Snd_ReadData(double index, double pos, double length, vo
 #define ERRCHECK(_x) do {if ((_x) != FMOD_OK) {return (_x);}} while (false)
 
 std::unique_ptr<Cassette::CassetteDSP> cassetteDsp;
+std::unique_ptr<SpeechSynthDSP> speechSynthDsp;
 
 GMexport double FMODGMS_Create_Cassette()
 {
 	// TODO HANDLE RACE CONDITIONS WITH CHANNELLIST!
 	cassetteDsp = std::make_unique<Cassette::CassetteDSP>(1, &annotationStore, &channelList);
+	speechSynthDsp = std::make_unique<SpeechSynthDSP>();
 
 	std::string error;
-	if (!cassetteDsp->Register(sys, error))
+	if (!cassetteDsp->Register(sys, error) || !speechSynthDsp->Register(sys, error))
     {
 		errorMessageAlloc = error;
 		errorMessage = errorMessageAlloc.c_str();
@@ -1087,11 +1090,6 @@ GMexport double Constant_Get_Bool(const char* s)
 GMexport double Get_Constant_Get_Double(const char* s)
 {
 	return Constants::Globals.GetDouble(s);
-}
-
-GMexport const char* Constant_Get_String(const char* s)
-{
-	const auto val = Constants::Globals.GetString(s);
 }
 
 GMexport double FMODGMS_Set_3d_X(double channel, double x, double y, double z)

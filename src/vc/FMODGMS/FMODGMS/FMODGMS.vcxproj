@@ -96,6 +96,7 @@
     <ClCompile Include="kissfft\kiss_fft.c" />
     <ClCompile Include="kissfft\kiss_fftr.c" />
     <ClCompile Include="RingBuffer.cpp" />
+    <ClCompile Include="SpeechSynth.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AnnotationStore.h" />
@@ -116,6 +117,8 @@
     <ClInclude Include="kissfft\_kiss_fft_guts.h" />
     <ClInclude Include="Cassette.h" />
     <ClInclude Include="RingBuffer.h" />
+    <ClInclude Include="SpeechSynth.h" />
+    <ClInclude Include="StringHelpers.h" />
     <ClInclude Include="UserData.h" />
   </ItemGroup>
   <ItemGroup>
