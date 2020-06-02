@@ -1028,135 +1028,6 @@ GMexport double FMODGMS_Snd_ReadData(double index, double pos, double length, vo
 #define RECORDBUFFER_SIZE 512
 #define ERRCHECK(_x) do {if ((_x) != FMOD_OK) {return (_x);}} while (false)
 
-float *recordBuffer = nullptr;
-uint32_t recordDspBufferLength = 0;
-uint32_t recordDspInChannels = 0;
-uint32_t recordDspOutChannels = 0;
-
-FMOD_RESULT F_CALLBACK recordDSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, float *outbuffer, unsigned int length, int inchannels, int *outchannels) 
-{
-    FMOD_RESULT result;
-    char name[256];
-    unsigned int userdata;
-    FMOD::DSP *thisdsp = (FMOD::DSP *)dsp_state->instance; 
-
-    /* 
-        This redundant call just shows using the instance parameter of FMOD_DSP_STATE to 
-        call a DSP information function. 
-    */
-    result = thisdsp->getInfo(name, 0, 0, 0, 0);
-	ERRCHECK(result);
-
-    result = thisdsp->getUserData((void **)&userdata);
-    ERRCHECK(result);
-
-	recordDspBufferLength = length;
-	recordDspInChannels = inchannels;
-	recordDspOutChannels = *outchannels;
-
-    /*
-        This loop assumes inchannels = outchannels, which it will be if the DSP is created with '0' 
-        as the number of channels in FMOD_DSP_DESCRIPTION.  
-        Specifying an actual channel count will mean you have to take care of any number of channels coming in,
-        but outputting the number of channels specified. Generally it is best to keep the channel 
-        count at 0 for maximum compatibility.
-    */
-    for (unsigned int samp = 0; samp < length; samp++) 
-    { 
-        /*
-            Feel free to unroll this.
-        */
-        for (int chan = 0; chan < *outchannels; chan++)
-        {
-            /* 
-                This DSP filter just halves the volume! 
-                Input is modified, and sent to output.
-            */
-			const uint32_t offset = (samp * *outchannels) + chan;
-			float value = inbuffer[offset] * 1.f;
-			if (value > 1.f)
-			{
-				value = 1.f;
-			}
-			else if (value < -1.f)
-			{
-				value = -1.f;
-			}
-
-			if (samp < RECORDBUFFER_SIZE)
-			{
-				*(recordBuffer + samp) = value;
-			}
-
-			outbuffer[offset] = value;
-        }
-    } 
-
-    return FMOD_OK; 
-} 
-
-GMexport double FMODGMS_Add_Record_DSP()
-{
-	recordBuffer = reinterpret_cast<float *>(malloc(sizeof(float) * RECORDBUFFER_SIZE));
-
-	FMOD::DSP *recordDsp;
-	{ 
-        FMOD_DSP_DESCRIPTION dspdesc; 
-        memset(&dspdesc, 0, sizeof(dspdesc));
-        
-        strncpy_s(dspdesc.name, "record capture DSP", sizeof(dspdesc.name));
-        dspdesc.version = 0x00010000;
-        dspdesc.numinputbuffers = 1;
-        dspdesc.numoutputbuffers = 1;
-        dspdesc.read = recordDSPCallback; 
-        dspdesc.userdata = (void *)0x12345678; 
-
-        result = sys->createDSP(&dspdesc, &recordDsp); 
-
-		if (result != FMOD_OK)
-		{
-			errorMessage = "Could not create DSP";
-			return GMS_error;
-		}
-
-
-		FMOD::ChannelGroup *mastergroup;
-		result = sys->getMasterChannelGroup(&mastergroup);
-
-		if (result != FMOD_OK)
-		{
-			errorMessage = "Could not get master channel";
-			return GMS_error;
-		}
-
-		result = masterGroup->addDSP(FMOD_CHANNELCONTROL_DSP_TAIL, recordDsp);
-		if (result != FMOD_OK)
-		{
-			errorMessage = "Could not add dsp";
-			return GMS_error;
-		}
-
-		return GMS_true;
-    } 
-}
-
-GMexport double FMODGMS_Snd_Record_ReadBuffer(double index)
-{
-	const size_t _index = static_cast<size_t>(round(index));
-	if (recordBuffer != nullptr && index < RECORDBUFFER_SIZE)
-	{
-		return recordBuffer[_index];
-	}
-
-	return 0;
-}
-
-GMexport double FMODGMS_Snd_Record_FreeBuffer()
-{
-	free(recordBuffer);
-	return 0;
-}
-
 std::unique_ptr<Cassette::CassetteDSP> cassetteDsp;
 
 GMexport double FMODGMS_Create_Cassette()
@@ -1206,6 +1077,21 @@ GMexport const char* FMODGMS_Get_Cassette_WorldAnnotation()
 GMexport double FMODGMS_Get_Cassette_Pos()
 {
 	return cassetteDsp->GetActivePosition();
+}
+
+GMexport double Constant_Get_Bool(const char* s)
+{
+	return Constants::Globals.GetBool(s) ? 1.0 : 0.0;
+}
+
+GMexport double Get_Constant_Get_Double(const char* s)
+{
+	return Constants::Globals.GetDouble(s);
+}
+
+GMexport const char* Constant_Get_String(const char* s)
+{
+	const auto val = Constants::Globals.GetString(s);
 }
 
 GMexport double FMODGMS_Set_3d_X(double channel, double x, double y, double z)
@@ -2759,5 +2645,7 @@ void u16ToASCII(std::u16string const &s)
 }
 
 #pragma endregion
+
+
 
 #endif //FMODGMS_CPP
