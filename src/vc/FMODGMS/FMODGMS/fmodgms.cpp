@@ -68,6 +68,9 @@ FMOD_DSP_PARAMETER_FFT *fftParams;
 
 AnnotationStore annotationStore;
 
+std::unique_ptr<Cassette::CassetteDSP> cassetteDsp;
+std::unique_ptr<SpeechSynthDSP> speechSynthDsp;
+
 #pragma endregion
 
 #pragma region System Functions
@@ -109,6 +112,11 @@ GMexport double FMODGMS_Sys_Update()
 
 	Constants::Globals.Refresh();
 	
+	if (speechSynthDsp != nullptr)
+	{
+		speechSynthDsp->Tick();
+	}
+
 	//Check to see if anything is playing before gathering spectrum data
 	bool playState = false;
 	masterGroup->isPlaying(&playState);
@@ -1029,9 +1037,6 @@ GMexport double FMODGMS_Snd_ReadData(double index, double pos, double length, vo
 #define RECORDBUFFER_SIZE 512
 #define ERRCHECK(_x) do {if ((_x) != FMOD_OK) {return (_x);}} while (false)
 
-std::unique_ptr<Cassette::CassetteDSP> cassetteDsp;
-std::unique_ptr<SpeechSynthDSP> speechSynthDsp;
-
 GMexport double FMODGMS_Create_Cassette()
 {
 	// TODO HANDLE RACE CONDITIONS WITH CHANNELLIST!
@@ -1056,8 +1061,13 @@ GMexport double FMODGMS_Create_Cassette()
 
 GMexport double FMODGMS_Set_VoiceSynth(double enabled, double pitch)
 {
-	speechSynthDsp->SetEnabled(enabled > 0);
-	speechSynthDsp->SetPitch(pitch);
+	//speechSynthDsp->SetEnabled(enabled > 0);
+	//speechSynthDsp->SetPitch(pitch);
+	if (enabled)
+	{
+        const std::string text = "blah text linden";
+        speechSynthDsp->Talk(text);
+	}
 	return 1.0;
 }
 

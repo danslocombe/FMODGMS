@@ -93,6 +93,7 @@
     <ClCompile Include="CassetteDistortion.cpp" />
     <ClCompile Include="ConstantReader.cpp" />
     <ClCompile Include="fmodgms.cpp" />
+    <ClCompile Include="FMSynth.cpp" />
     <ClCompile Include="kissfft\kiss_fft.c" />
     <ClCompile Include="kissfft\kiss_fftr.c" />
     <ClCompile Include="RingBuffer.cpp" />
@@ -100,6 +101,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnnotationStore.h" />
+    <ClInclude Include="AudioProcessors.h" />
     <ClInclude Include="CassetteControl.h" />
     <ClInclude Include="CassetteDistortion.h" />
     <ClInclude Include="ConstantReader.h" />
@@ -112,6 +114,7 @@
     <ClInclude Include="fmod_dsp_effects.h" />
     <ClInclude Include="fmod_errors.h" />
     <ClInclude Include="fmod_output.h" />
+    <ClInclude Include="FMSynth.h" />
     <ClInclude Include="kissfft\kiss_fft.h" />
     <ClInclude Include="kissfft\kiss_fftr.h" />
     <ClInclude Include="kissfft\_kiss_fft_guts.h" />

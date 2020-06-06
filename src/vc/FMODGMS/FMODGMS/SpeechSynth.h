@@ -1,13 +1,6 @@
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <optional>
-#include <string>
-#include "fmod_common.h"
-#include "fmod.hpp"
-#include "fmod_errors.h"
-#include "RingBuffer.h"
+#include "FMSynth.h"
 
 class SpeechSynthDSP
 {
@@ -21,39 +14,33 @@ public:
     };
 
 
-    bool SpeechSynthDSP::Register(FMOD::System* sys, std::string& error);
+    bool Register(FMOD::System* sys, std::string& error);
 
-    void SpeechSynthDSP::SetEnabled(bool enabled)
-    {
-        m_state = enabled ? SpeechSynthState::SYNTH_TALKING : SpeechSynthState::SYNTH_STOPPED;
-    }
+    void Talk(const std::string_view& text);
+    void Tick();
 
-    void SpeechSynthDSP::SetPitch(double pitch)
-    {
-        m_pitch = pitch;
-    }
+    //void SetEnabled(bool enabled)
+    //{
+    //    m_state = enabled ? SpeechSynthState::SYNTH_TALKING : SpeechSynthState::SYNTH_STOPPED;
+    //}
 
-    FMOD_RESULT Callback(
-        float* inbuffer,
-        float* outbuffer,
-        uint32_t length,
-        int inchannels,
-        int* outchannels);
-
-    static FMOD_RESULT F_CALLBACK SpeechSynthDspGenericCallback(
-        FMOD_DSP_STATE* dsp_state,
-        float* inbuffer,
-        float* outbuffer,
-        uint32_t length,
-        int inchannels,
-        int* outchannels);
+    //void SetPitch(double pitch)
+    //{
+    //    m_pitch = pitch;
+    //}
 
     RingBuffer m_freqBuf;
 private:
-    FMOD::DSP* m_dsp;
-    FMOD_DSP_DESCRIPTION m_dspDescr;
-    SpeechSynthState m_state;
-    uint32_t m_curSample;
-    RingBuffer m_prevSamples;
-    double m_pitch = 1.0;
+    void UpdateConfigFromReader();
+    void MutateConfig(char c);
+    void NextChar(uint32_t c);
+
+    FMSynthDSP m_synth;
+
+    std::string m_text;
+    bool m_talking = false;
+    uint32_t m_textCurChar = 0;
+    uint32_t m_curCharLen = 0;
+    uint32_t m_curCharEndWait = 0;
+    uint32_t m_curCharT = 0;
 };

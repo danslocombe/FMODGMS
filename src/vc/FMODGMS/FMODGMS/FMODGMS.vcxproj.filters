@@ -78,6 +78,15 @@
     <ClInclude Include="StringHelpers.h">
       <Filter>Header Files\Dan</Filter>
     </ClInclude>
+    <ClInclude Include="AnnotationStore.h">
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioProcessors.h">
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
+    <ClInclude Include="FMSynth.h">
+      <Filter>Header Files\Dan</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fmodgms.cpp">
@@ -107,10 +116,10 @@
     <ClCompile Include="ConstantReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AnnotationStore.h">
-      <Filter>Header Files\Dan</Filter>
-    </ClCompile>
     <ClCompile Include="SpeechSynth.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FMSynth.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

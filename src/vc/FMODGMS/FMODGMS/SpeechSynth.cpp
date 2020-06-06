@@ -1,149 +1,117 @@
 #include "SpeechSynth.h"
 #include "ConstantReader.h"
-#include <math.h>
-#include "StringHelpers.h"
 
-SpeechSynthDSP::SpeechSynthDSP() : m_prevSamples(32), m_freqBuf(512)
+SpeechSynthDSP::SpeechSynthDSP() : m_freqBuf(128)
 {
-    // Do we need this?
-    memset(&m_dspDescr, 0, sizeof(m_dspDescr));
-    
-    strncpy_s(m_dspDescr.name, "Speech Synth DSP", sizeof(m_dspDescr.name));
-    m_dspDescr.version = 0x00010000;
-    m_dspDescr.numinputbuffers = 1;
-    m_dspDescr.numoutputbuffers = 1;
-    m_dspDescr.read = SpeechSynthDspGenericCallback; 
-    m_dspDescr.userdata = (void *)0x12345678; 
-
-    m_state = SpeechSynthState::SYNTH_STOPPED;
-    m_curSample = 0;
 }
 
 bool SpeechSynthDSP::Register(FMOD::System* sys, std::string& error)
 {
-    // TODO refactor duplicate register function into abstract DSP class.
-    FMOD_RESULT result = sys->createDSP(&m_dspDescr, &m_dsp);
-    if (result != FMOD_OK)
+    const bool success = this->m_synth.Register(sys, error);
+    if (success)
     {
-        error = "Could not create DSP";
-        return false;
+        this->m_synth.SetEnabled(true);
     }
 
-    FMOD::ChannelGroup* masterGroup = nullptr;
-    result = sys->getMasterChannelGroup(&masterGroup);
-
-    if (result != FMOD_OK && masterGroup != nullptr)
-    {
-        error = "Could not get master channel";
-        return false;
-    }
-
-    // Push to end of dsp list.
-    result = masterGroup->addDSP(FMOD_CHANNELCONTROL_DSP_TAIL, m_dsp);
-    if (result != FMOD_OK)
-    {
-        error = "Could not add dsp";
-        return false;
-    }
-
-    m_dsp->setUserData(reinterpret_cast<void*>(this));
-
-    return true;
+    return success;
 }
 
-float PulseWidthGenerator(double samp, double pulseWidth)
+void SpeechSynthDSP::Talk(const std::string_view& text)
 {
-    const double yy = fmod(samp, 6.282);
+    m_text = std::string(text);
+    m_textCurChar = 0;
+    m_talking = true;
+}
 
-    if (yy < pulseWidth)
+void SpeechSynthDSP::UpdateConfigFromReader()
+{
+    auto& config = m_synth.GetConfigMut();
+    config.AmpASDR.Attack = Constants::Globals.GetDouble("speech_synth_amp_a");
+    config.AmpASDR.Decay = Constants::Globals.GetDouble("speech_synth_amp_d");
+    config.AmpASDR.Sustain = Constants::Globals.GetDouble("speech_synth_amp_s");
+    config.AmpASDR.Release = Constants::Globals.GetDouble("speech_synth_amp_r");
+    config.AmpSmoothK = Constants::Globals.GetDouble("speech_synth_amp_smooth");
+
+    config.SinWave = Constants::Globals.GetBool("speech_synth_shape");
+    config.PulseWidth = 6.282 * Constants::Globals.GetDouble("speech_synth_pulse_width");
+    config.Freq = Constants::Globals.GetDouble("speech_synth_freq");
+    config.FreqSmoothK = Constants::Globals.GetDouble("speech_synth_freq_smooth");
+
+    config.LowPassAlpha = Constants::Globals.GetDouble("speech_synth_low_pass_alpha");
+}
+
+void SpeechSynthDSP::MutateConfig(char c)
+{
+    auto& config = m_synth.GetConfigMut();
+
+    config.SinWave = false;
+
     {
-        return 1.0;
+        //const double pulseMod = Constants::Globals.GetDouble("speech_synth_shape_mod_mult");
+        //const double frac = fmod((double)c * pulseMod, 1.0);
+        const int pwr = rand() % 100;
+        config.PulseWidth = 6.282 * (double)(pwr) / 100.0;
+    }
+
+    config.AmpASDR.Attack += (double)(rand() % 1000) - 500.0;
+
+    config.Freq += Constants::Globals.GetDouble("speech_synth_freq_mod") * (double)(rand() % 100) / 100.0;
+}
+
+void SpeechSynthDSP::NextChar(uint32_t pos)
+{
+    m_textCurChar = pos;
+    const char c = m_text[pos];
+    if (c == ' ')
+    {
+        m_curCharLen = 0;
+        m_curCharEndWait = Constants::Globals.GetUint("speech_space_dur");
     }
     else
     {
-        return -1.0;
-    }
-}
-
-FMOD_RESULT SpeechSynthDSP::Callback(
-    float* inbuffer,
-    float* outbuffer,
-    uint32_t length,
-    int inchannels,
-    int* outChannels)
-{
-    const double freqMult = Constants::Globals.GetDouble("speech_synth_freq_mult");
-    const double freqLfoSpeed = Constants::Globals.GetDouble("speech_synth_freq_lfo_speed");
-    const double freqLfoDepth = Constants::Globals.GetDouble("speech_synth_freq_lfo_depth");
-
-    double pulseWidth = 6.282 * Constants::Globals.GetDouble("speech_synth_pulse_width");
-    const double synthVol = Constants::Globals.GetDouble("speech_synth_vol");
-    const auto shape = Constants::Globals.GetString("speech_synth_shape");
-    const double pulseWidthLfoSpeed = Constants::Globals.GetDouble("speech_synth_pulse_width_lfo_speed");
-    const double pulseWidthLfoDepth = Constants::Globals.GetDouble("speech_synth_pulse_width_lfo_depth");
-
-    const bool sinWave = stringEqualIgnoreCase(shape, "sin");
-
-    for (uint32_t samp = 0; samp < length; samp++) 
-    {
-        for (int chan = 0; chan < *outChannels; chan++)
+        if (!Constants::Globals.GetBool("speech_synth_from_config"))
         {
-			const uint32_t offset = (samp * *outChannels) + chan;
-            float value = inbuffer[offset];
-
-            if (m_state == SpeechSynthDSP::SpeechSynthState::SYNTH_TALKING)
-            {
-                m_curSample++;
-
-                const double samp = (m_pitch * freqMult * (double)m_curSample) 
-                    + freqLfoDepth * sin((double)m_curSample * m_pitch * freqLfoSpeed);
-
-                float oscValue;
-
-                if (sinWave)
-                {
-                    oscValue = sin(samp);
-                }
-                else
-                {
-                    pulseWidth += pulseWidthLfoDepth * sin((double)m_curSample * pulseWidthLfoSpeed);
-                    oscValue = PulseWidthGenerator(samp, pulseWidth);
-                }
-
-                //if (samp == 0)
-                {
-                    //m_freqBuf.Push(100.0 * frequency);
-                }
-
-                value += synthVol * oscValue;
-            }
-
-			outbuffer[offset] = value;
+            this->UpdateConfigFromReader();
+            this->MutateConfig(c);
         }
-    } 
-
-    return FMOD_OK;
-}
-
-FMOD_RESULT F_CALLBACK SpeechSynthDSP::SpeechSynthDspGenericCallback(
-    FMOD_DSP_STATE* dsp_state,
-    float* inbuffer,
-    float* outbuffer,
-    uint32_t length,
-    int inchannels,
-    int* outchannels)
-{
-    FMOD_RESULT result;
-
-    FMOD::DSP *thisdsp = reinterpret_cast<FMOD::DSP *>(dsp_state->instance); 
-
-    SpeechSynthDSP* speechSynthObj;
-    result = thisdsp->getUserData(reinterpret_cast<void **>(&speechSynthObj));
-
-    if (result != FMOD_OK)
-    {
-        return result;
+        m_curCharLen = Constants::Globals.GetUint("speech_synth_char_len");
+        m_curCharEndWait = Constants::Globals.GetUint("speech_synth_end_dur");
     }
 
-    return speechSynthObj->Callback(inbuffer, outbuffer, length, inchannels, outchannels);
+    //m_curCharLen = 10;
+    //m_curCharEndWait = 5;
+    m_curCharT = 0;
+}
+
+void SpeechSynthDSP::Tick()
+{
+    if (Constants::Globals.GetBool("speech_synth_from_config"))
+    {
+        this->UpdateConfigFromReader();
+    }
+
+    if (m_talking)
+    {
+        m_curCharT += 1;
+        if (m_curCharT > m_curCharLen + m_curCharEndWait)
+        {
+            if (m_textCurChar < m_text.size())
+            {
+                this->NextChar(++m_textCurChar);
+            }
+            else
+            {
+                m_talking = false;
+                m_text = "";
+                m_curCharT = 0;
+                m_curCharLen = 0;
+            }
+        }
+
+        this->m_synth.SetKeydown(m_curCharT < m_curCharLen);
+    }
+    else
+    {
+        this->m_synth.SetKeydown(false);
+    }
 }
