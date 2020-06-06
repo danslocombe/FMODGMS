@@ -10,6 +10,7 @@ public:
 
     void Push(float x);
     float ReadOffset(int offset) const;
+    size_t Size() const;
 private:
     float* m_buffer;
     size_t m_currentPos;

@@ -17,6 +17,11 @@ RingBuffer::~RingBuffer()
     free(m_buffer);
 }
 
+size_t RingBuffer::Size() const
+{
+    return m_size;
+}
+
 void RingBuffer::Push(float x)
 {
     m_currentPos++;

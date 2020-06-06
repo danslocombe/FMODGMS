@@ -3,7 +3,7 @@
 #include <math.h>
 #include "StringHelpers.h"
 
-SpeechSynthDSP::SpeechSynthDSP() : m_prevSamples(32)
+SpeechSynthDSP::SpeechSynthDSP() : m_prevSamples(32), m_freqBuf(512)
 {
     // Do we need this?
     memset(&m_dspDescr, 0, sizeof(m_dspDescr));
@@ -51,10 +51,9 @@ bool SpeechSynthDSP::Register(FMOD::System* sys, std::string& error)
     return true;
 }
 
-float PulseWidthGenerator(uint32_t t, double freq, double pulseWidth)
+float PulseWidthGenerator(double samp, double pulseWidth)
 {
-    const double xx = static_cast<double>(t) * freq;
-    const double yy = fmod(xx, 6.282);
+    const double yy = fmod(samp, 6.282);
 
     if (yy < pulseWidth)
     {
@@ -64,11 +63,6 @@ float PulseWidthGenerator(uint32_t t, double freq, double pulseWidth)
     {
         return -1.0;
     }
-}
-
-float SinGenerator(uint32_t t, float freq)
-{
-    return sin(static_cast<float>(t) * freq);
 }
 
 FMOD_RESULT SpeechSynthDSP::Callback(
@@ -95,25 +89,34 @@ FMOD_RESULT SpeechSynthDSP::Callback(
         for (int chan = 0; chan < *outChannels; chan++)
         {
 			const uint32_t offset = (samp * *outChannels) + chan;
-			float value = inbuffer[offset] * 1.f;
+            float value = inbuffer[offset];
 
-            m_curSample++;
-
-            const float frequency = freqMult + freqLfoDepth * SinGenerator(m_curSample, freqLfoSpeed);
-
-            float oscValue;
-
-            if (sinWave)
+            if (m_state == SpeechSynthDSP::SpeechSynthState::SYNTH_TALKING)
             {
-                oscValue = SinGenerator(m_curSample, frequency);
-            }
-            else
-            {
-                pulseWidth += pulseWidthLfoDepth * SinGenerator(m_curSample, pulseWidthLfoSpeed);
-                oscValue = PulseWidthGenerator(m_curSample, frequency, pulseWidth);
-            }
+                m_curSample++;
 
-            value += synthVol * oscValue;
+                const double samp = (m_pitch * freqMult * (double)m_curSample) 
+                    + freqLfoDepth * sin((double)m_curSample * m_pitch * freqLfoSpeed);
+
+                float oscValue;
+
+                if (sinWave)
+                {
+                    oscValue = sin(samp);
+                }
+                else
+                {
+                    pulseWidth += pulseWidthLfoDepth * sin((double)m_curSample * pulseWidthLfoSpeed);
+                    oscValue = PulseWidthGenerator(samp, pulseWidth);
+                }
+
+                //if (samp == 0)
+                {
+                    //m_freqBuf.Push(100.0 * frequency);
+                }
+
+                value += synthVol * oscValue;
+            }
 
 			outbuffer[offset] = value;
         }

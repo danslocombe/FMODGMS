@@ -1054,6 +1054,24 @@ GMexport double FMODGMS_Create_Cassette()
     return GMS_true;
 }
 
+GMexport double FMODGMS_Set_VoiceSynth(double enabled, double pitch)
+{
+	speechSynthDsp->SetEnabled(enabled > 0);
+	speechSynthDsp->SetPitch(pitch);
+	return 1.0;
+}
+
+GMexport double FMODGMS_Get_VoiceSynth_FreqBuf(double offset)
+{
+	if (offset < 0 || offset > 1.0)
+	{
+		return 0.0;
+	}
+
+	const int bufOffset = -std::round(offset * (double)speechSynthDsp->m_freqBuf.Size());
+	return speechSynthDsp->m_freqBuf.ReadOffset(bufOffset);
+}
+
 GMexport double FMODGMS_Set_Cassette_State(double mode)
 {
 	const Cassette::CassetteState x = (Cassette::CassetteState)round(mode);

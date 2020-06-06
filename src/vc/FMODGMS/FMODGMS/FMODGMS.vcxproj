@@ -99,7 +99,7 @@
     <ClCompile Include="SpeechSynth.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AnnotationStore.h" />
+    <ClInclude Include="AnnotationStore.h" />
     <ClInclude Include="CassetteControl.h" />
     <ClInclude Include="CassetteDistortion.h" />
     <ClInclude Include="ConstantReader.h" />
