@@ -1,5 +1,6 @@
 #include "SpeechSynth.h"
 #include "ConstantReader.h"
+#include "StringHelpers.h"
 
 SpeechSynthDSP::SpeechSynthDSP() : m_freqBuf(128)
 {
@@ -32,7 +33,20 @@ void SpeechSynthDSP::UpdateConfigFromReader()
     config.AmpASDR.Release = Constants::Globals.GetDouble("speech_synth_amp_r");
     config.AmpSmoothK = Constants::Globals.GetDouble("speech_synth_amp_smooth");
 
-    config.SinWave = Constants::Globals.GetBool("speech_synth_shape");
+    const auto shape = Constants::Globals.GetString("speech_synth_shape");
+    if (stringEqualIgnoreCase(shape, "sin"))
+    {
+        config.Wave = WaveType::SIN;
+    }
+    else if (stringEqualIgnoreCase(shape, "saw"))
+    {
+        config.Wave = WaveType::SAW;
+    }
+    else
+    {
+        config.Wave = WaveType::PULSE;
+    }
+
     config.PulseWidth = 6.282 * Constants::Globals.GetDouble("speech_synth_pulse_width");
     config.Freq = Constants::Globals.GetDouble("speech_synth_freq");
     config.FreqSmoothK = Constants::Globals.GetDouble("speech_synth_freq_smooth");
@@ -44,7 +58,9 @@ void SpeechSynthDSP::MutateConfig(char c)
 {
     auto& config = m_synth.GetConfigMut();
 
-    config.SinWave = false;
+    srand((uint32_t)c);
+
+    //config.SinWave = true;
 
     {
         //const double pulseMod = Constants::Globals.GetDouble("speech_synth_shape_mod_mult");
@@ -78,8 +94,6 @@ void SpeechSynthDSP::NextChar(uint32_t pos)
         m_curCharEndWait = Constants::Globals.GetUint("speech_synth_end_dur");
     }
 
-    //m_curCharLen = 10;
-    //m_curCharEndWait = 5;
     m_curCharT = 0;
 }
 

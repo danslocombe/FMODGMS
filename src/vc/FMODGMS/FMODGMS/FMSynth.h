@@ -11,12 +11,19 @@
 #include "AudioProcessors.h"
 
 
+enum class WaveType
+{
+    SIN,
+    PULSE,
+    SAW,
+};
+
 struct FMSynthConfig
 {
     AudioProcessors::ASDRConfig AmpASDR;
     double AmpSmoothK = 1;
 
-    bool SinWave = true;
+    WaveType Wave;
     double PulseWidth = 0;
     double Freq = 1;
     double FreqSmoothK = 1;

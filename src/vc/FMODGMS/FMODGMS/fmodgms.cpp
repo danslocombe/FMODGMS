@@ -1061,11 +1061,9 @@ GMexport double FMODGMS_Create_Cassette()
 
 GMexport double FMODGMS_Set_VoiceSynth(double enabled, double pitch)
 {
-	//speechSynthDsp->SetEnabled(enabled > 0);
-	//speechSynthDsp->SetPitch(pitch);
 	if (enabled)
 	{
-        const std::string text = "blah text linden";
+		const auto text = Constants::Globals.GetString("speech_synth_text");
         speechSynthDsp->Talk(text);
 	}
 	return 1.0;

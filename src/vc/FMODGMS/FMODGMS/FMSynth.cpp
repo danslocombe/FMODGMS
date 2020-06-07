@@ -61,6 +61,13 @@ float PulseWidthGenerator(double samp, double pulseWidth)
     }
 }
 
+float SawGenerator(double samp)
+{
+    const double yy = fmod(samp, 6.282);
+
+    return 2.0 * ((yy / 6.282) - 0.5);
+}
+
 void FMSynthDSP::FillBuffer(std::vector<float>& buffer)
 {
     if (!m_enabled)
@@ -72,7 +79,6 @@ void FMSynthDSP::FillBuffer(std::vector<float>& buffer)
     const double freqMult = 0.03 * m_config.Freq;// Constants::Globals.GetDouble("speech_synth_freq_mult");
 
     double pulseWidth = m_config.PulseWidth;
-    const bool sinWave = m_config.SinWave;
 
     for (uint32_t i = 0; i < buffer.size(); i++)
     {
@@ -92,16 +98,20 @@ void FMSynthDSP::FillBuffer(std::vector<float>& buffer)
         m_freq = AudioProcessors::lerp(m_freq, freqMult, m_config.FreqSmoothK);
 
         const double samp = (m_pitch * m_freq * (double)m_curSample);
-        float oscValue;
+        float oscValue = 0;
 
-        if (sinWave)
+        if (m_config.Wave == WaveType::SIN)
         {
             oscValue = sin(samp);
         }
-        else
+        else if (m_config.Wave == WaveType::PULSE)
         {
             //pulseWidth += pulseWidthLfoDepth * sin((double)m_curSample * pulseWidthLfoSpeed);
             oscValue = PulseWidthGenerator(samp, pulseWidth);
+        }
+        else if (m_config.Wave == WaveType::SAW)
+        {
+            oscValue = SawGenerator(samp);
         }
 
         buffer[i] = m_amp * oscValue;
@@ -141,7 +151,6 @@ FMOD_RESULT FMSynthDSP::Callback(
 			const uint32_t offset = (samp * *outChannels) + chan;
             float value = inbuffer[offset];
 
-            //if (m_enabled)
             {
                 value += oscBuffer[samp];
 
