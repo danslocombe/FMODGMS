@@ -5,22 +5,80 @@
 #include <charconv>
 #include "StringHelpers.h"
 
-class shared_lock_guard
-{
-private:
-    std::shared_mutex& m;
+typedef _ConstantReader_Constant Constant;
 
-public:
-    explicit shared_lock_guard(std::shared_mutex& m_):
-        m(m_)
+ConstantObj::ConstantObj(std::unordered_map<std::string_view, Constant> values) : m_values(std::move(values))
+{}
+
+int ConstantObj::GetInt(const std::string_view& name) const
+{
+    return static_cast<int>(this->GetDouble(name));
+}
+
+uint32_t ConstantObj::GetUint(const std::string_view& name) const
+{
+    return static_cast<uint32_t>(this->GetDouble(name));
+}
+
+bool ConstantObj::GetBool(const std::string_view& val) const
+{
+    const auto x = this->FindConstant(val);
+
+    if (x.has_value() && std::holds_alternative<bool>(*x))
     {
-        m.lock_shared();
+        return std::get<bool>(*x);
     }
-    ~shared_lock_guard()
+
+    return false;
+}
+
+double ConstantObj::GetDouble(const std::string_view& val) const
+{
+    const auto x = this->FindConstant(val);
+
+    if (x.has_value() && std::holds_alternative<double>(*x))
     {
-        m.unlock_shared();
+        return std::get<double>(*x);
     }
-};
+
+    return 0.0;
+}
+
+std::string ConstantObj::GetString(const std::string_view& val) const
+{
+    const auto x = this->FindConstant(val);
+
+    if (x.has_value() && std::holds_alternative<std::string>(*x))
+    {
+        return std::get<std::string>(*x);
+    }
+
+    return "";
+}
+
+std::shared_ptr<const ConstantObj> ConstantObj::GetObj(const std::string_view& name) const
+{
+    const auto x = this->FindConstant(name);
+
+    if (x.has_value() && std::holds_alternative<std::shared_ptr<const ConstantObj>>(*x))
+    {
+        return std::get<std::shared_ptr<const ConstantObj>>(*x);
+    }
+
+    return nullptr;
+}
+
+std::optional<Constant> ConstantObj::FindConstant(const std::string_view& name) const
+{
+    const auto existing = m_values.find(name);
+    if (existing != m_values.end())
+    {
+        return existing->second;
+    }
+
+    return std::nullopt;
+}
+
 
 std::string ReadAll(HANDLE handle)
 {
@@ -63,29 +121,35 @@ std::vector<std::string_view> lineSplit(const std::string_view& str)
     return results;
 }
 
-/*
 std::string_view trimString(const std::string_view& str)
 {
     const auto start = str.find_first_not_of(' ');
+    if (start == std::string_view::npos)
+    {
+        // Whitespace or empty string
+        return str;
+    }
+
     const auto end = str.find_last_not_of(' ');
-    return str.substr(start, end - start);
-}*/
+    return str.substr(start, (end + 1) - start);
+}
 
 std::optional<std::pair<std::string_view, std::string_view>> splitKV(const std::string_view& str)
 {
+    const auto trimmed = trimString(str);
     constexpr char delimiter = ' ';
-    const size_t delimiterIndex = str.find(delimiter);
+    const size_t delimiterIndex = trimmed.find(delimiter);
     if (delimiterIndex != std::string_view::npos)
     {
-        const auto value = str.substr(delimiterIndex + 1, str.size() - (delimiterIndex + 1));
-        return { { str.substr(0, delimiterIndex), (value) } };
+        const auto value = trimmed.substr(delimiterIndex + 1, trimmed.size() - (delimiterIndex + 1));
+        return { { trimmed.substr(0, delimiterIndex), (value) } };
     }
 
     return std::nullopt;
 
 }
 
-ConstantReader::Constant ConstantReader::ParseConstant(const std::string_view& str)
+Constant ConstantReader::ParseConstant(const std::string_view& str)
 {
     if (stringEqualIgnoreCase(str, "true"))
     {
@@ -109,18 +173,59 @@ ConstantReader::Constant ConstantReader::ParseConstant(const std::string_view& s
     return { std::string(str) };
 }
 
-std::unordered_map<std::string_view, ConstantReader::Constant> ConstantReader::ParseValues(const std::string_view& str)
+std::optional<std::pair<std::string_view, Constant>> ConstantReader::ParseObject(uint32_t& i, const std::vector<std::string_view>& lines)
 {
-    std::unordered_map<std::string_view, ConstantReader::Constant> map;
+    const auto& line = lines[i];
+    const auto kv = splitKV(line);
+    i++;
 
-    const auto lines = lineSplit(str);
-    for (const auto& line : lines)
+    const bool nextLineOpeningBrace = i < lines.size() && lines[i] == "{";
+
+    if (kv.has_value() || !nextLineOpeningBrace)
     {
-        const auto kv = splitKV(line);
-        if (kv.has_value())
+        // Todo strip whitespace in {} checks
+        if (kv.value().second == "{" || nextLineOpeningBrace)
+        {
+            if (nextLineOpeningBrace)
+            {
+                i++;
+            }
+
+            std::unordered_map<std::string_view, Constant> fields;
+            while (i < lines.size() && lines[i] != "}")
+            {
+                const auto next = ParseObject(i, lines);
+                if (next.has_value())
+                {
+                    fields[next.value().first] = next.value().second;
+                }
+            }
+
+            auto co = std::make_shared<const ConstantObj>(std::move(fields));
+            return std::make_optional(std::make_pair(kv->first, std::move(co)));
+        }
+        else
         {
             const auto value = ConstantReader::ParseConstant(kv->second);
-            map.insert({ kv->first, value });
+            return std::make_optional(std::make_pair(kv->first, value));
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::unordered_map<std::string_view, Constant> ConstantReader::ParseValues(const std::string_view& str)
+{
+    std::unordered_map<std::string_view, Constant> map;
+    const auto lines = lineSplit(str);
+    uint32_t i = 0;
+
+    while (i < lines.size())
+    {
+        const auto object = ParseObject(i, lines);
+        if (object.has_value())
+        {
+            map.insert(object.value());
         }
     }
 
@@ -142,7 +247,9 @@ ConstantReader::ConstantReader(const std::string_view& path)
     GetFileTime(m_handle, &creationTime, &lastAccessTime, &lastWriteTime);
     m_lastModified = lastWriteTime;
     m_fileContents = ReadAll(m_handle);
-    m_values = this->ParseValues(m_fileContents);
+
+    const bool forceRefresh = true;
+    this->Refresh(forceRefresh);
 }
 
 ConstantReader::~ConstantReader()
@@ -150,18 +257,19 @@ ConstantReader::~ConstantReader()
     CloseHandle(m_handle);
 }
 
-void ConstantReader::Refresh()
+void ConstantReader::Refresh(bool force)
 {
-    const std::unique_lock<std::shared_mutex> guard(m_rwMutex);
-
-    FILETIME newLastModifiedTime;
-    if (this->ShouldRebuild(&newLastModifiedTime))
+    FILETIME newLastModifiedTime = m_lastModified;
+    if (force || this->ShouldRebuild(&newLastModifiedTime))
     {
+        const std::unique_lock<std::shared_mutex> guard(m_rwMutex);
+
         const auto data = ReadAll(m_handle);
         if (data.size() > 0)
         {
             m_fileContents = data;
-            m_values = this->ParseValues(m_fileContents);
+            auto topLevelValues = this->ParseValues(m_fileContents);
+            m_baseObj = ConstantObj(std::move(topLevelValues));
             m_lastModified = newLastModifiedTime;
         }
     }
@@ -178,59 +286,36 @@ bool ConstantReader::ShouldRebuild(LPFILETIME lastWriteTime) const
 
 int ConstantReader::GetInt(const std::string_view& name) const
 {
+    const std::shared_lock<std::shared_mutex> guard(m_rwMutex);
     return static_cast<int>(this->GetDouble(name));
 }
 
 uint32_t ConstantReader::GetUint(const std::string_view& name) const
 {
+    const std::shared_lock<std::shared_mutex> guard(m_rwMutex);
     return static_cast<uint32_t>(this->GetDouble(name));
 }
 
 bool ConstantReader::GetBool(const std::string_view& val) const
 {
-    const auto x = this->FindConstant(val);
-
-    if (x.has_value() && std::holds_alternative<bool>(*x))
-    {
-        return std::get<bool>(*x);
-    }
-
-    return false;
+    const std::shared_lock<std::shared_mutex> guard(m_rwMutex);
+    return m_baseObj.GetBool(val);
 }
 
 double ConstantReader::GetDouble(const std::string_view& val) const
 {
-    const auto x = this->FindConstant(val);
-
-    if (x.has_value() && std::holds_alternative<double>(*x))
-    {
-        return std::get<double>(*x);
-    }
-
-    return 0.0;
+    const std::shared_lock<std::shared_mutex> guard(m_rwMutex);
+    return m_baseObj.GetDouble(val);
 }
 
 std::string ConstantReader::GetString(const std::string_view& val) const
 {
-    const auto x = this->FindConstant(val);
-
-    if (x.has_value() && std::holds_alternative<std::string>(*x))
-    {
-        return std::get<std::string>(*x);
-    }
-
-    return "";
+    const std::shared_lock<std::shared_mutex> guard(m_rwMutex);
+    return m_baseObj.GetString(val);
 }
 
-std::optional<ConstantReader::Constant> ConstantReader::FindConstant(const std::string_view& name) const
+std::shared_ptr<const ConstantObj> ConstantReader::GetObj(const std::string_view& val) const
 {
     const std::shared_lock<std::shared_mutex> guard(m_rwMutex);
-
-    const auto existing = m_values.find(name);
-    if (existing != m_values.end())
-    {
-        return existing->second;
-    }
-
-    return std::nullopt;
+    return m_baseObj.GetObj(val);
 }

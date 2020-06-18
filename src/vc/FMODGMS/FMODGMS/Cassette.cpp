@@ -6,9 +6,14 @@
 
 using namespace Cassette;
 
-CassetteDSP::CassetteDSP(size_t recordCount, AnnotationStore* annotationStore, const std::unordered_map<size_t, FMOD::Channel*>* channels) :
+CassetteDSP::CassetteDSP(
+    size_t recordCount,
+    AnnotationStore* annotationStore,
+    const std::unordered_map<size_t, FMOD::Channel*>* channels,
+    const SpeechSynthDSP* speechSynth) :
     m_annotationStore(annotationStore),
     m_channels(channels),
+    m_speechSynth(speechSynth),
     m_control(CassetteControl(RECORDBUFFER_SIZE))
 {
     RecordBuffer buffer(RECORDBUFFER_SIZE);
@@ -125,6 +130,13 @@ AnnotationValue CassetteDSP::GetCurrentAnnotationValue()
     }
     else
     {
+        // Try get from speech synth
+        auto speechSynthText = this->m_speechSynth->TryGetText();
+        if (speechSynthText.has_value())
+        {
+            return AnnotationValue{ std::move(speechSynthText) };
+        }
+
         // Take annotation from environment
         for (const auto& kv : *m_channels)
         {
@@ -140,7 +152,13 @@ AnnotationValue CassetteDSP::GetCurrentAnnotationValue()
                 if (playingSound->getUserData(reinterpret_cast<void**>(&userData)) == FMOD_OK
                     && channel->getPosition(&posMs, FMOD_TIMEUNIT_MS) == FMOD_OK)
                 {
-                    return AnnotationValue{ this->m_annotationStore->GetAnnotation(userData->Id, (double)posMs / 1000.0) };
+                    const auto view = this->m_annotationStore->GetAnnotation(userData->Id, (double)posMs / 1000.0);
+                    if (view.has_value())
+                    {
+                        return AnnotationValue{ std::make_optional<std::string>(view.value()) };
+                    }
+
+                    return AnnotationValue{ std::nullopt };
                 }
             }
         }

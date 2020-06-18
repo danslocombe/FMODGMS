@@ -17,6 +17,7 @@ public:
     bool Register(FMOD::System* sys, std::string& error);
 
     void Talk(const std::string_view& text);
+    void SetSpeaker(const std::string_view& speaker);
     void Tick();
 
     //void SetEnabled(bool enabled)
@@ -29,6 +30,9 @@ public:
     //    m_pitch = pitch;
     //}
 
+    std::optional<std::string> TryGetText() const;
+    bool IsTalking() const;
+
     RingBuffer m_freqBuf;
 private:
     void UpdateConfigFromReader();
@@ -38,6 +42,8 @@ private:
     FMSynthDSP m_synth;
 
     std::string m_text;
+    std::string m_speaker;
+
     bool m_talking = false;
     uint32_t m_textCurChar = 0;
     uint32_t m_curCharLen = 0;

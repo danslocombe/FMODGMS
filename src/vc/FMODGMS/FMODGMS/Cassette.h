@@ -10,6 +10,7 @@
 #include "AnnotationStore.h"
 #include "CassetteControl.h"
 #include "CassetteDistortion.h"
+#include "SpeechSynth.h"
 
 namespace Cassette
 {
@@ -19,7 +20,7 @@ namespace Cassette
 
     struct AnnotationValue
     {
-        std::optional<std::string_view> Value;
+        std::optional<std::string> Value;
     };
 
     class RecordBuffer
@@ -61,7 +62,11 @@ namespace Cassette
     class CassetteDSP
     {
     public:
-        CassetteDSP(size_t recordCount, AnnotationStore* annotationStore, const std::unordered_map<std::size_t, FMOD::Channel*>* channels);
+        CassetteDSP(
+            size_t recordCount,
+            AnnotationStore* annotationStore,
+            const std::unordered_map<std::size_t, FMOD::Channel*>* channels,
+            const SpeechSynthDSP* speechSynth);
 
         bool Register(FMOD::System* sys, std::string& error);
 
@@ -84,6 +89,8 @@ namespace Cassette
 
         AnnotationStore* m_annotationStore;
         const std::unordered_map<std::size_t, FMOD::Channel*>* m_channels;
+
+        const SpeechSynthDSP* m_speechSynth;
 
         FMOD::DSP* m_dsp;
         FMOD_DSP_DESCRIPTION m_dspDescr;

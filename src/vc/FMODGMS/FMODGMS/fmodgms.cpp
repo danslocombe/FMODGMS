@@ -103,6 +103,13 @@ GMexport double FMODGMS_Sys_Initialize(double maxChan)
 	return FMODGMS_Util_ErrorChecker();
 }
 
+GMexport double FMODGMS_Constants_Update()
+{
+	const bool forceRefresh = false;
+	Constants::Globals.Refresh(forceRefresh);
+	return 0.0;
+}
+
 // Updates the FMOD system  and spectrum DSP
 GMexport double FMODGMS_Sys_Update()
 {
@@ -110,7 +117,8 @@ GMexport double FMODGMS_Sys_Update()
 	if (result != FMOD_OK)
 		return FMODGMS_Util_ErrorChecker();
 
-	Constants::Globals.Refresh();
+	const bool forceRefresh = false;
+	Constants::Globals.Refresh(forceRefresh);
 	
 	if (speechSynthDsp != nullptr)
 	{
@@ -1040,8 +1048,8 @@ GMexport double FMODGMS_Snd_ReadData(double index, double pos, double length, vo
 GMexport double FMODGMS_Create_Cassette()
 {
 	// TODO HANDLE RACE CONDITIONS WITH CHANNELLIST!
-	cassetteDsp = std::make_unique<Cassette::CassetteDSP>(1, &annotationStore, &channelList);
 	speechSynthDsp = std::make_unique<SpeechSynthDSP>();
+	cassetteDsp = std::make_unique<Cassette::CassetteDSP>(1, &annotationStore, &channelList, speechSynthDsp.get());
 
 	std::string error;
 	if (!cassetteDsp->Register(sys, error) || !speechSynthDsp->Register(sys, error))
@@ -1069,6 +1077,18 @@ GMexport double FMODGMS_Set_VoiceSynth(double enabled, double pitch)
 	return 1.0;
 }
 
+GMexport double FMODGMS_Talk(const char* dialogue)
+{
+	//speechSynthDsp->SetSpeaker(speaker);
+    speechSynthDsp->Talk(dialogue);
+	return 1.0;
+}
+
+GMexport double FMODGMS_Is_Talking()
+{
+	return speechSynthDsp != nullptr && speechSynthDsp->IsTalking();
+}
+
 GMexport double FMODGMS_Get_VoiceSynth_FreqBuf(double offset)
 {
 	if (offset < 0 || offset > 1.0)
@@ -1092,15 +1112,20 @@ GMexport double FMODGMS_Get_Cassette_Waveform(double x)
 	return cassetteDsp->GetWaveform(x);
 }
 
+std::string GetCassetteWorldAnnotation_String;
 GMexport const char* FMODGMS_Get_Cassette_WorldAnnotation()
 {
 	const auto& curAnnot = cassetteDsp->GetCurrentWorldAnnotation();
 	if (curAnnot.Value.has_value())
 	{
-		return curAnnot.Value->data();
+		GetCassetteWorldAnnotation_String = curAnnot.Value.value();
+	}
+	else
+	{
+		GetCassetteWorldAnnotation_String.clear();
 	}
 
-	return "";
+	return GetCassetteWorldAnnotation_String.c_str();
 }
 
 GMexport double FMODGMS_Get_Cassette_Pos()
