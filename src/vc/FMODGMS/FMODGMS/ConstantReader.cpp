@@ -184,11 +184,22 @@ std::optional<std::pair<std::string_view, Constant>> ConstantReader::ParseObject
     if (kv.has_value() || !nextLineOpeningBrace)
     {
         // Todo strip whitespace in {} checks
-        if (kv.value().second == "{" || nextLineOpeningBrace)
+        if (nextLineOpeningBrace || kv->second == "{")
         {
+            // Define an object
+            // Warning kv.value() may not be defined
+            std::string_view objectName;
+
             if (nextLineOpeningBrace)
             {
+                // Skip over this line in next call
                 i++;
+
+                objectName = line;
+            }
+            else
+            {
+                objectName = kv->first;
             }
 
             std::unordered_map<std::string_view, Constant> fields;
@@ -202,10 +213,11 @@ std::optional<std::pair<std::string_view, Constant>> ConstantReader::ParseObject
             }
 
             auto co = std::make_shared<const ConstantObj>(std::move(fields));
-            return std::make_optional(std::make_pair(kv->first, std::move(co)));
+            return std::make_optional(std::make_pair(objectName, std::move(co)));
         }
         else
         {
+            // We know kv is defined
             const auto value = ConstantReader::ParseConstant(kv->second);
             return std::make_optional(std::make_pair(kv->first, value));
         }
@@ -248,7 +260,7 @@ ConstantReader::ConstantReader(const std::string_view& path)
     m_lastModified = lastWriteTime;
     m_fileContents = ReadAll(m_handle);
 
-    const bool forceRefresh = true;
+    constexpr bool forceRefresh = true;
     this->Refresh(forceRefresh);
 }
 
