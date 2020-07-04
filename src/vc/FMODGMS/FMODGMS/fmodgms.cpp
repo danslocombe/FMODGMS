@@ -1077,9 +1077,9 @@ GMexport double FMODGMS_Set_VoiceSynth(double enabled, double pitch)
 	return 1.0;
 }
 
-GMexport double FMODGMS_Talk(const char* dialogue)
+GMexport double FMODGMS_Talk(const char* dialogue, const char* speaker)
 {
-	//speechSynthDsp->SetSpeaker(speaker);
+	speechSynthDsp->SetSpeaker(speaker);
     speechSynthDsp->Talk(dialogue);
 	return 1.0;
 }

@@ -44,65 +44,55 @@ std::optional<std::string> SpeechSynthDSP::TryGetText() const
     return {};
 }
 
-void SpeechSynthDSP::UpdateConfigFromReader()
+void SpeechSynthDSP::UpdateConfigFromReader(const std::shared_ptr<const ConstantObj>& speakerConfig)
 {
     auto& config = m_synth.GetConfigMut();
     
-    const auto speakerConfig = Constants::Globals.GetObj(m_speaker);
-    if (speakerConfig != nullptr)
+    config.AmpASDR.Attack = speakerConfig->GetDouble("amp_a");
+    config.AmpASDR.Decay = speakerConfig->GetDouble("amp_d");
+    config.AmpASDR.Sustain = speakerConfig->GetDouble("amp_s");
+    config.AmpASDR.Release = speakerConfig->GetDouble("amp_r");
+    config.AmpSmoothK = speakerConfig->GetDouble("amp_smooth");
+
+    const auto shape = speakerConfig->GetString("shape");
+    if (stringEqualIgnoreCase(shape, "sin"))
     {
-        config.AmpASDR.Attack = speakerConfig->GetDouble("speech_synth_amp_a");
-        config.AmpASDR.Decay = speakerConfig->GetDouble("speech_synth_amp_d");
-        config.AmpASDR.Sustain = speakerConfig->GetDouble("speech_synth_amp_s");
-        config.AmpASDR.Release = speakerConfig->GetDouble("speech_synth_amp_r");
-        config.AmpSmoothK = speakerConfig->GetDouble("speech_synth_amp_smooth");
-
-        const auto shape = speakerConfig->GetString("speech_synth_shape");
-        if (stringEqualIgnoreCase(shape, "sin"))
-        {
-            config.Wave = WaveType::SIN;
-        }
-        else if (stringEqualIgnoreCase(shape, "saw"))
-        {
-            config.Wave = WaveType::SAW;
-        }
-        else
-        {
-            config.Wave = WaveType::PULSE;
-        }
-
-        config.PulseWidth = 6.282 * speakerConfig->GetDouble("speech_synth_pulse_width");
-        config.Freq = speakerConfig->GetDouble("speech_synth_freq");
-        config.FreqSmoothK = speakerConfig->GetDouble("speech_synth_freq_smooth");
-
-        config.LowPassAlpha = speakerConfig->GetDouble("speech_synth_low_pass_alpha");
-
+        config.Wave = WaveType::SIN;
     }
+    else if (stringEqualIgnoreCase(shape, "saw"))
+    {
+        config.Wave = WaveType::SAW;
+    }
+    else
+    {
+        config.Wave = WaveType::PULSE;
+    }
+
+    config.PulseWidth = 6.282 * speakerConfig->GetDouble("pulse_width");
+    config.Freq = speakerConfig->GetDouble("freq");
+    config.FreqSmoothK = speakerConfig->GetDouble("freq_smooth");
+
+    config.LowPassAlpha = speakerConfig->GetDouble("low_pass_alpha");
 }
 
-void SpeechSynthDSP::MutateConfig(char c)
+void SpeechSynthDSP::MutateConfig(char c, const std::shared_ptr<const ConstantObj>& speakerConfig)
 {
-    const auto speakerConfig = Constants::Globals.GetObj(m_speaker);
+    auto& config = m_synth.GetConfigMut();
 
-    if (speakerConfig != nullptr)
+    srand((uint32_t)c);
+
+    //config.SinWave = true;
+
     {
-        auto& config = m_synth.GetConfigMut();
-
-        srand((uint32_t)c);
-
-        //config.SinWave = true;
-
-        {
-            //const double pulseMod = Constants::Globals.GetDouble("speech_synth_shape_mod_mult");
-            //const double frac = fmod((double)c * pulseMod, 1.0);
-            const int pwr = rand() % 100;
-            config.PulseWidth = 6.282 * (double)(pwr) / 100.0;
-        }
-
-        config.AmpASDR.Attack += (double)(rand() % 1000) - 500.0;
-
-        config.Freq += speakerConfig->GetDouble("speech_synth_freq_mod") * (double)(rand() % 100) / 100.0;
+        //const double pulseMod = Constants::Globals.GetDouble("shape_mod_mult");
+        //const double frac = fmod((double)c * pulseMod, 1.0);
+        const int pwr = rand() % 100;
+        config.PulseWidth = 6.282 * (double)(pwr) / 100.0;
     }
+
+    config.AmpASDR.Attack += (double)(rand() % 1000) - 500.0;
+
+    config.Freq += speakerConfig->GetDouble("freq_mod") * (double)(rand() % 100) / 100.0;
 }
 
 void SpeechSynthDSP::NextChar(uint32_t pos)
@@ -116,13 +106,15 @@ void SpeechSynthDSP::NextChar(uint32_t pos)
     }
     else
     {
-        if (!Constants::Globals.GetBool("speech_synth_from_config"))
+        //if (!Constants::Globals.GetBool("speech_synth_from_config"))
+        const auto speakerConfig = Constants::Globals.GetObj(m_speaker);
+        if (speakerConfig != nullptr)
         {
-            this->UpdateConfigFromReader();
-            this->MutateConfig(c);
+            this->UpdateConfigFromReader(speakerConfig);
+            this->MutateConfig(c, speakerConfig);
+            m_curCharLen = speakerConfig->GetUint("char_len");
+            m_curCharEndWait = speakerConfig->GetUint("end_dur");
         }
-        m_curCharLen = Constants::Globals.GetUint("speech_synth_char_len");
-        m_curCharEndWait = Constants::Globals.GetUint("speech_synth_end_dur");
     }
 
     m_curCharT = 0;
@@ -130,9 +122,9 @@ void SpeechSynthDSP::NextChar(uint32_t pos)
 
 void SpeechSynthDSP::Tick()
 {
-    if (Constants::Globals.GetBool("speech_synth_from_config"))
+    //if (Constants::Globals.GetBool("speech_synth_from_config"))
     {
-        this->UpdateConfigFromReader();
+        //this->UpdateConfigFromReader();
     }
 
     if (m_talking)

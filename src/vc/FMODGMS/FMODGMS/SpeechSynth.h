@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FMSynth.h"
+#include "ConstantReader.h"
 
 class SpeechSynthDSP
 {
@@ -35,8 +36,8 @@ public:
 
     RingBuffer m_freqBuf;
 private:
-    void UpdateConfigFromReader();
-    void MutateConfig(char c);
+    void UpdateConfigFromReader(const std::shared_ptr<const ConstantObj>& constObj);
+    void MutateConfig(char c, const std::shared_ptr<const ConstantObj>& constObj);
     void NextChar(uint32_t c);
 
     FMSynthDSP m_synth;

@@ -181,13 +181,13 @@ std::optional<std::pair<std::string_view, Constant>> ConstantReader::ParseObject
 
     const bool nextLineOpeningBrace = i < lines.size() && lines[i] == "{";
 
-    if (kv.has_value() || !nextLineOpeningBrace)
+    if (kv.has_value() || nextLineOpeningBrace)
     {
         // Todo strip whitespace in {} checks
+        // Warning kv.value() may not be defined
         if (nextLineOpeningBrace || kv->second == "{")
         {
             // Define an object
-            // Warning kv.value() may not be defined
             std::string_view objectName;
 
             if (nextLineOpeningBrace)
