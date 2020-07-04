@@ -1042,9 +1042,6 @@ GMexport double FMODGMS_Snd_ReadData(double index, double pos, double length, vo
 	return (double)read;
 }
 
-#define RECORDBUFFER_SIZE 512
-#define ERRCHECK(_x) do {if ((_x) != FMOD_OK) {return (_x);}} while (false)
-
 GMexport double FMODGMS_Create_Cassette()
 {
 	// TODO HANDLE RACE CONDITIONS WITH CHANNELLIST!
@@ -1096,7 +1093,7 @@ GMexport double FMODGMS_Get_VoiceSynth_FreqBuf(double offset)
 		return 0.0;
 	}
 
-	const int bufOffset = -std::round(offset * (double)speechSynthDsp->m_freqBuf.Size());
+	const int bufOffset = (int)(-std::round(offset * (double)speechSynthDsp->m_freqBuf.Size()));
 	return speechSynthDsp->m_freqBuf.ReadOffset(bufOffset);
 }
 

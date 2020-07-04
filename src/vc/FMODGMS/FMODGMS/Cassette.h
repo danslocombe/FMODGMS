@@ -40,6 +40,7 @@ namespace Cassette
         const AnnotationValue& ReadPosAnnotation(size_t pos) const;
 
         float GetPosition() const;
+        uint32_t GetPositionSample() const;
         size_t GetSize() const;
     private:
         std::vector<float> m_buffer;

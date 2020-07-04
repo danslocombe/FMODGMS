@@ -249,6 +249,7 @@ FMOD_RESULT CassetteDSP::Callback(
             auto& recordingBuffer = this->m_recordBuffers.at(this->m_active);
             const float recordSample = averagedSample + noise(0.01);
             recordingBuffer.Push(recordSample, annotation);
+            this->m_control.SetPos(recordingBuffer.GetPositionSample());
         }
     } 
 
@@ -348,7 +349,7 @@ float RecordBuffer::ReadPosInterpolate(double pos) const
     const float valLower = this->ReadPos(lower);
     const float valUpper = this->ReadPos(upper);
 
-    return fracPart * valLower + (1.0 - fracPart) * valUpper;
+    return (float)(fracPart * valLower + (1.0 - fracPart) * valUpper);
 }
 
 const AnnotationValue& RecordBuffer::ReadOffsetAnnotation(int offset) const
@@ -365,6 +366,11 @@ const AnnotationValue& RecordBuffer::ReadPosAnnotation(size_t pos) const
 float RecordBuffer::GetPosition() const
 {
     return (float)m_pos / (float)m_buffer.size();
+}
+
+uint32_t RecordBuffer::GetPositionSample() const
+{
+    return m_pos;
 }
 
 size_t RecordBuffer::WrapOffset(int offset) const
