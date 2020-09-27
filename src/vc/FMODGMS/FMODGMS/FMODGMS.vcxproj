@@ -62,7 +62,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <CustomBuildStep>
-      <Command>copy C:\Users\daslocom\FMODGMS\src\vc\FMODGMS\Debug\FMODGMS.* C:\Users\daslocom\Documents\GameMaker\Projects\fmodrecord_1.gmx\extensions\FMODGMS</Command>
+      <Command>copy C:\Users\daslocom\FMODGMS\src\vc\FMODGMS\Debug\FMODGMS.* C:\Users\daslocom\Documents\GameMaker\Projects\fmodrecord_2.gmx\extensions\FMODGMS</Command>
       <Outputs>fakeoutput.txt</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
@@ -87,7 +87,7 @@
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>copy C:\Users\daslocom\FMODGMS\src\vc\FMODGMS\Debug\FMODGMS.* C:\Users\daslocom\Documents\GameMaker\Projects\fmodrecord_1.gmx\extensions\FMODGMS</Command>
+      <Command>copy C:\Users\daslocom\FMODGMS\src\vc\FMODGMS\Debug\FMODGMS.* C:\Users\daslocom\Documents\GameMaker\Projects\fmodrecord_2.gmx\extensions\FMODGMS</Command>
       <Outputs>fakeoutput.txt</Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>

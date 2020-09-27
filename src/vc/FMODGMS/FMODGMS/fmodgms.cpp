@@ -1135,9 +1135,21 @@ GMexport double Constant_Get_Bool(const char* s)
 	return Constants::Globals.GetBool(s) ? 1.0 : 0.0;
 }
 
-GMexport double Get_Constant_Get_Double(const char* s)
+GMexport double FMODGMS_Constant_Get_Double_From_Obj(const char* obj, const char* s)
+{
+	return Constants::Globals.GetObj(obj)->GetDouble(s);
+}
+
+GMexport double FMODGMS_Constant_Get_Double(const char* s)
 {
 	return Constants::Globals.GetDouble(s);
+}
+
+std::string _constant_ret;
+GMexport const char* FMODGMS_Constant_Get_String_Dangerous(const char* s)
+{
+	_constant_ret = Constants::Globals.GetString(s);
+	return _constant_ret.c_str();
 }
 
 GMexport double FMODGMS_Set_3d_X(double channel, double x, double y, double z)
